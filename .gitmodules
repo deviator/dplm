@@ -1,0 +1,3 @@
+[submodule "descore"]
+	path = descore
+	url = git@github.com:dexset/descore.git
