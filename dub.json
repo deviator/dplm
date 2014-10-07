@@ -1,0 +1,8 @@
+{
+	"name": "dplsim",
+    "version": "~master",
+    "targetPath": "bin",
+    "targetType": "executable",
+    "importPaths": [ "descore/import" ],
+    "sourcePaths": [ "descore/import", "src" ]
+}
