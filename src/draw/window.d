@@ -66,25 +66,7 @@ protected:
             glViewport( 0, 0, sz.x, sz.y );
         });
 
-        bool pressed = false;
-        mouseproc.mouse.connect( ( in MouseEvent ev ) 
-        {
-            if( ev.type == MouseEvent.Type.WHEEL )  
-                cam.moveFront( -ev.whe.y * 0.1 );
-
-            if( ev.type == ev.Type.PRESSED ) pressed = true;
-            if( ev.type == ev.Type.RELEASED ) pressed = false;
-            
-            if( ev.type == ev.Type.MOTION )
-            {
-                if( pressed )
-                {
-                    auto frel = vec2( ev.rel ) * vec2(-1,1);
-                    auto angle = frel / 80.0;
-                    cam.addRotate( angle );
-                }
-            }
-        });
+        mouseproc.mouse.connect( &(cam.mouseControl) );
     }
 
     void addCube( vec3 offset, col4 color )
