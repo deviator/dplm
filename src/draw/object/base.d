@@ -125,7 +125,7 @@ public:
 
     const @property
     {
-        mat4 matrix() { return mat4(); }
+        mat4 matrix() { return mat4.diag(1); }
         const(Node) parent() { return _parent; }
     }
 }

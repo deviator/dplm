@@ -3,8 +3,8 @@
     "version": "~master",
     "targetPath": "bin",
     "targetType": "executable",
-    "importPaths": [ "derelict/import", "descore/import", "des/import" ],
-    "sourcePaths": [ "derelict/import", "descore/import", "des/import", "src" ],
+    "importPaths": [ "DerelictCL/source", "descl/import", "derelict/import", "descore/import", "des/import" ],
+    "sourcePaths": [ "DerelictCL/source", "descl/import", "derelict/import", "descore/import", "des/import", "src" ],
     "libs-posix": [ "dl" ],
     "lflags": [ "-L./derelict/lib/dmd" ],
     "libs":

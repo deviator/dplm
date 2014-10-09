@@ -19,3 +19,9 @@
 [submodule "derelict"]
 	path = derelict
 	url = git@github.com:cdsd/derelict.git
+[submodule "DerelictCL"]
+	path = DerelictCL
+	url = git@github.com:MeinMein/DerelictCL.git
+[submodule "descl"]
+	path = descl
+	url = git@github.com:dexset/descl.git
