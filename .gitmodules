@@ -1,3 +1,21 @@
 [submodule "descore"]
 	path = descore
 	url = git@github.com:dexset/descore.git
+[submodule "des"]
+	path = des
+	url = git@github.com:dexset/des.git
+[submodule "DerelictUtil"]
+	path = DerelictUtil
+	url = git@github.com:DerelictOrg/DerelictUtil.git
+[submodule "DerelictGL3"]
+	path = DerelictGL3
+	url = git@github.com:DerelictOrg/DerelictGL3.git
+[submodule "DerelictFT"]
+	path = DerelictFT
+	url = git@github.com:DerelictOrg/DerelictFT.git
+[submodule "DerelictSDL2"]
+	path = DerelictSDL2
+	url = git@github.com:DerelictOrg/DerelictSDL2.git
+[submodule "derelict"]
+	path = derelict
+	url = git@github.com:cdsd/derelict.git

@@ -1,11 +1,19 @@
 import std.stdio;
+import des.app;
+import draw.window;
 
-import des.math.linear;
+void info(Args...)( Args args )
+{
+    stdout.writefln( args );
+    stdout.flush();
+}
 
 void main()
 {
-    writeln( "hello diploma" );
-    auto a = vec3(1,2,3);
-    auto b = vec3(4,8,2);
-    writeln( a + b );
+    info( "app start" );
+    GLApp app = new GLApp;
+    app.addWindow({ return new MainWindow( "diploma simulator", ivec2(800,600) ); });
+    app.run();
+    app.destroy();
+    info( "app finish" );
 }
