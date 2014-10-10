@@ -5,7 +5,8 @@ import des.util;
 import des.app;
 
 import draw.camera;
-import draw.object;
+import draw.model;
+import model;
 
 import std.stdio;
 import std.range;
@@ -14,72 +15,68 @@ class MainWindow : GLWindow
 {
 private:
 
-    MCamera  cam;
-    Cube[]   cubes;
+    MCamera cam;
+    Control ctrl;
+
+    KeyboardEventProcessor keyproc;
+    WindowEventProcessor   winproc;
+    MouseEventProcessor    mouseproc;
 
 protected:
 
     override void prepare()
     {
-        cam = new MCamera;
+        createData();
+        createEventProcessors();
 
-        auto offsets =
-        [
-            vec3(0,0,0),
-            vec3(3,0,0),
-            vec3(6,0,0)
-        ];
+        prepareSignals();
+    }
 
-        auto colors =
-        [
-            col4(1,0,0,1),
-            col4(0,1,0,1),
-            col4(0,0,1,1)
-        ];
+    void createData()
+    {
+        cam  = new MCamera;
+        ctrl = new Control( new Model );
+    }
 
-        foreach( prm; zip(offsets,colors) )
-            addCube( prm[0], prm[1] );
+    void createEventProcessors()
+    {
+        keyproc   = addEventProcessor( new KeyboardEventProcessor );
+        winproc   = addEventProcessor( new WindowEventProcessor );
+        mouseproc = addEventProcessor( new MouseEventProcessor );
+    }
 
-        idle.connect(
-        {
-            glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-        });
+    void prepareSignals()
+    {
+        prepareBaseSignals();
+        prepareDataSignals();
+    }
 
-        draw.connect(
-        {
-            foreach( cube; cubes )
-                cube.draw( cam );
-        });
-
-        auto keyproc   = addEventProcessor( new KeyboardEventProcessor );
-        auto winproc   = addEventProcessor( new WindowEventProcessor );
-        auto mouseproc = addEventProcessor( new MouseEventProcessor );
+    void prepareBaseSignals()
+    {
+        idle.connect({ glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ); });
 
         keyproc.key.connect( ( in KeyboardEvent ev )
-        {
-            if( ev.scan == ev.Scan.ESCAPE ) app.quit();
-        });
+        { if( ev.scan == ev.Scan.ESCAPE ) app.quit(); });
+
+        winproc.resized.connect(( ivec2 sz ){ glViewport( 0, 0, sz.x, sz.y ); });
+    }
+
+    void prepareDataSignals()
+    {
+        idle.connect({ ctrl.idle(); });
+        draw.connect({ ctrl.draw( cam ); });
+
+        keyproc.key.connect( &(ctrl.keyControl) );
+        keyproc.key.connect( &(cam.keyControl) );
 
         winproc.resized.connect( ( ivec2 sz )
-        {
-            cam.perspective.aspect = sz.x / cast(float)sz.y;
-            glViewport( 0, 0, sz.x, sz.y );
-        });
+        { cam.perspective.aspect = sz.x / cast(float)sz.y; });
 
         mouseproc.mouse.connect( &(cam.mouseControl) );
     }
 
-    void addCube( vec3 offset, col4 color )
-    {
-        auto cube_offset = new DimmyNode;
-        cube_offset.setOffset( offset );
-        auto nc = registerChildEMM( new Cube( cube_offset ) );
-        nc.color = color;
-        cubes ~= nc;
-    }
-
 public:
 
-    this( string title, ivec2 sz, bool fullscreen = false, int display = -1 )
+    this( string title, ivec2 sz, bool fullscreen = false )
     { super( title, sz, fullscreen ); }
 }

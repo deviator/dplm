@@ -77,6 +77,15 @@ public:
         }
     }
 
+    void keyControl( in KeyboardEvent ev )
+    {
+        if( ev.scan == ev.Scan.NUMBER_0 )
+        {
+            look_tr.target = vec3(0,0,0);
+            updatePos();
+        }
+    }
+
 protected:
 
     vec2 normRotate( in vec2 r )
