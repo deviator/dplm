@@ -29,6 +29,7 @@ public:
         look_tr.pos = orb + look_tr.target;
         transform = look_tr;
         perspective = new PerspectiveTransform; 
+        perspective.near = 1;
         projection = perspective;
     }
 

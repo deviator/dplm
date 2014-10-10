@@ -5,6 +5,17 @@ public import des.math.linear;
 
 import std.stdio;
 
+import std.algorithm;
+import std.array;
+import std.range;
+
+T[] multiElem(T)( size_t N, T val ) { return array( map!(a=>val)( iota(0,N) ) ); }
+
+unittest
+{
+    assert( multiElem(3,"str") == [ "str", "str", "str" ] );
+}
+
 enum ShaderSource SS_BASE =
 {
 `#version 330
@@ -56,22 +67,80 @@ void main(void)
     if( lcam.z > 0 )
         br_coef = pow( 1.0f - length( lcam.xy ), 4 );
 
-    out_color = color * vec4(vec3(col_coef),1) + light_color * br_coef;
+    out_color = color * vec4(vec3(col_coef),1) + light_color * br_coef * 0.4;
 }`
 };
 
-class BaseDrawObject : GLObj, Node
+interface DrawNode : Node
+{
+    void draw( Camera cam );
+
+    @property
+    {
+        col4 color() const;
+        col4 color( in col4 n );
+
+        mat4 matrix() const;
+        mat4 matrix( in mat4 m );
+
+        const(Node) parent() const;
+    }
+
+    void setParent( Node p );
+}
+
+class DrawNodeList : DrawNode
+{
+protected:
+    Node par;
+    mat4 mtr;
+
+    DrawNode[] list;
+
+    col4 clr;
+
+public:
+
+    void draw( Camera cam )
+    {
+        foreach( obj; list )
+            obj.draw(cam);
+    }
+
+    @property
+    {
+        col4 color() const { return clr; }
+        col4 color( in col4 n ) 
+        {
+            clr = n;
+            foreach( obj; list )
+                obj.color = clr;
+            return clr;
+        }
+
+        mat4 matrix() const { return mtr; }
+        mat4 matrix( in mat4 m )
+        { mtr = m; return mtr; }
+
+        const(Node) parent() const { return par; }
+    }
+
+    void setParent( Node p ) { par = p; }
+}
+
+class BaseDrawObject : GLObj, DrawNode
 {
 protected:
     GLBuffer pos, norm;
     CommonShaderProgram shader;
 
-    Node _parent;
-
     abstract void fillBuffers();
     abstract void drawFunc();
 
     col4 clr;
+
+    Node par;
+    mat4 mtr;
 
 public:
 
@@ -92,9 +161,9 @@ public:
             setAttribPointer( norm, loc[1], 3, GLType.FLOAT );
         }
 
-        _parent = p;
+        par = p;
 
-        clr = col4( .5, .5, .5, 1 );
+        clr = col4( vec3(0.7), 1 );
 
         fillBuffers();
     }
@@ -121,11 +190,13 @@ public:
         col4 color() const { return clr; }
         col4 color( in col4 n ) 
         { clr = n; return clr; }
+
+        mat4 matrix() const { return mtr; }
+        mat4 matrix( in mat4 m )
+        { mtr = m; return mtr; }
+
+        const(Node) parent() const { return par; }
     }
 
-    const @property
-    {
-        mat4 matrix() { return mat4.diag(1); }
-        const(Node) parent() { return _parent; }
-    }
+    void setParent( Node p ) { par = p; }
 }
