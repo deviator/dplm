@@ -72,7 +72,7 @@ public:
             if( ev.isPressed( ev.Button.MIDDLE ) )
             {
                 auto frel = vec2( ev.rel ) * vec2(-1,1);
-                auto offset = frel / 50.0;
+                auto offset = frel / 50.0 * sqrt( orb.len );
                 moveCenter( offset );
             }
         }

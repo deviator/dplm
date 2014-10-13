@@ -2,74 +2,10 @@ module draw.object.base;
 
 public import des.gl.base;
 public import des.math.linear;
+public import draw.object.shader;
+public import draw.object.util;
 
 import std.stdio;
-
-import std.algorithm;
-import std.array;
-import std.range;
-
-T[] multiElem(T)( size_t N, T val ) { return array( map!(a=>val)( iota(0,N) ) ); }
-
-unittest
-{
-    assert( multiElem(3,"str") == [ "str", "str", "str" ] );
-}
-
-enum ShaderSource SS_BASE =
-{
-`#version 330
-in vec3 position;
-in vec3 normal;
-
-uniform mat4 prj;
-uniform mat4 resolve;
-uniform vec3 resolved_light_pos;
-
-out vec3 v_norm;
-out vec3 v_light;
-
-void main(void)
-{
-    gl_Position = prj * vec4( position, 1.0 );
-    v_norm  = normalize( (resolve * vec4( normal, 0.0 )).xyz );
-    v_light = normalize( resolved_light_pos - (resolve * vec4( position, 1.0 )).xyz );
-}`,
-
-`#version 330
-
-in vec3 v_norm;
-in vec3 v_light;
-
-uniform vec4 color;
-
-out vec4 out_color;
-
-void main(void)
-{
-    float col_coef = 0.0f;
-    float br_coef = 0.0f;
-
-    vec3 norm = v_norm;
-    vec3 ldir = v_light;
-
-    vec4 light_color = vec4(1);
-
-    float dc = 0.1;
-
-    float dln = dot(ldir,norm);
-
-    col_coef = dc + max(0.0f,dln) * (1.0f-dc);
-
-    vec3 lnpp = norm * dln;
-
-    vec3 lcam = lnpp + lnpp - ldir;
-    if( lcam.z > 0 )
-        br_coef = pow( 1.0f - length( lcam.xy ), 4 );
-
-    out_color = color * vec4(vec3(col_coef),1) + light_color * br_coef * 0.4;
-}`
-};
 
 interface DrawNode : Node
 {
