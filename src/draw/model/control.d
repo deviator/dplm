@@ -21,7 +21,7 @@ public:
     {
         world = new World( vec2(1000,1000), 300 );
         unit = new DrawUnit(null);
-        unit.matrix = mat4.diag(1).setCol(3,[0,0,50,1]);
+        unit.setCoordinate( vec3(0,0,20), quat(0,0,0,1) );
     }
 
     void idle()
