@@ -3,12 +3,11 @@ module draw.object.unit;
 public import draw.object.base;
 import std.math;
 
-class DrawUnit : GLObject, DrawNode
+class DrawUnit : GLSimpleObject, DrawNode
 {
 protected:
 
     GLBuffer pos, norm;
-    CommonShaderProgram shader;
 
     col4 clr;
 
@@ -46,21 +45,15 @@ protected:
         pos.setData( pos_data, GLBuffer.Usage.STATIC_DRAW );
     }
 
-    void drawFunc()
-    {
-        if( pos.elementCount > 0 )
-            glDrawArrays( GL_LINE_LOOP, 0, cast(uint)pos.elementCount );
-    }
-
 public:
 
     this( Node p )
     {
-        shader = registerChildEMM( new CommonShaderProgram( SS_SIMPLE ) );
+        super( SS_Simple );
         auto loc = shader.getAttribLocation( "position" );
         if( loc < 0 ) assert( 0, "no position in shader" );
 
-        pos = registerChildEMM( new GLBuffer( GLBuffer.Target.ARRAY_BUFFER ) );
+        pos = createArrayBuffer();
         setAttribPointer( pos, loc, 3, GLType.FLOAT );
 
         par = p;
@@ -72,15 +65,12 @@ public:
 
     void draw( Camera cam )
     {
-        vao.bind();
-        shader.use();
-
         shader.setUniformMat( "prj", cam(this) );
         shader.setUniformVec( "color", clr );
 
         glEnable( GL_DEPTH_TEST );
 
-        drawFunc();
+        drawArrays( DrawMode.LINE_LOOP );
     }
 
     @property

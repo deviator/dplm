@@ -1,6 +1,6 @@
 module draw.object.base;
 
-public import des.gl.base;
+public import des.gl.simple;
 public import des.math.linear;
 public import draw.object.shader;
 public import draw.object.util;
@@ -64,14 +64,11 @@ public:
     void setParent( Node p ) { par = p; }
 }
 
-class BaseDrawObject : GLObject, DrawNode
+class BaseDrawObject : GLSimpleObject, DrawNode
 {
 protected:
-    GLBuffer pos, norm;
-    CommonShaderProgram shader;
 
-    abstract void fillBuffers();
-    abstract void drawFunc();
+    abstract void prepareBuffers();
 
     col4 clr;
 
@@ -80,45 +77,11 @@ protected:
 
 public:
 
-    this( Node p )
+    this( Node p, in ShaderSource sh )
     {
-        shader = registerChildEMM( new CommonShaderProgram( SS_BASE ) );
-        auto loc = shader.getAttribLocations( "position", "normal" );
-
-        pos  = registerChildEMM( new GLBuffer( GLBuffer.Target.ARRAY_BUFFER ) );
-        setAttribPointer( pos, loc[0], 3, GLType.FLOAT );
-
-        if( loc[0] < 0 ) assert( 0, "no position in shader" );
-        if( loc[1] < 0 ) stderr.writeln( "no normal in shader" );
-
-        if( loc[1] >= 0 )
-        {
-            norm = registerChildEMM( new GLBuffer( GLBuffer.Target.ARRAY_BUFFER ) );
-            setAttribPointer( norm, loc[1], 3, GLType.FLOAT );
-        }
-
+        super( sh );
         par = p;
-
-        clr = col4( vec3(0.7), 1 );
-
-        fillBuffers();
-    }
-
-    void draw( Camera cam )
-    {
-        vao.bind();
-        shader.use();
-
-        auto rs = cam.resolve(this);
-
-        shader.setUniformMat( "prj", cam(this) );
-        shader.setUniformMat( "resolve", rs );
-        shader.setUniformVec( "resolved_light_pos", (vec4(0,0,0,1)).xyz );
-        shader.setUniformVec( "color", clr );
-
-        glEnable( GL_DEPTH_TEST );
-
-        drawFunc();
+        prepareBuffers();
     }
 
     @property
@@ -135,4 +98,61 @@ public:
     }
 
     void setParent( Node p ) { par = p; }
+
+    abstract void draw( Camera cam );
+}
+
+class BaseShadeObject : BaseDrawObject
+{
+protected:
+    GLBuffer pos, norm;
+
+    override void prepareBuffers()
+    {
+        auto loc = getLocations();
+
+        pos  = createArrayBuffer();
+        setAttribPointer( pos, loc[0], 3, GLType.FLOAT );
+
+        if( loc[1] >= 0 )
+        {
+            norm = createArrayBuffer();
+            setAttribPointer( norm, loc[1], 3, GLType.FLOAT );
+        }
+
+        fillBuffers();
+    }
+
+    auto getLocations()
+    {
+        auto loc = shader.getAttribLocations( "position", "normal" );
+        if( loc[0] < 0 ) assert( 0, "no position in shader" );
+        if( loc[1] < 0 ) stderr.writeln( "no normal in shader" );
+        return loc;
+    }
+
+    abstract void fillBuffers();
+    abstract void drawFunc();
+
+public:
+
+    this( Node p )
+    {
+        super( p, SS_ShadeObject );
+        clr = col4( vec3(0.7), 1 );
+    }
+
+    override void draw( Camera cam )
+    {
+        auto rs = cam.resolve(this);
+
+        shader.setUniformMat( "prj", cam(this) );
+        shader.setUniformMat( "resolve", rs );
+        shader.setUniformVec( "resolved_light_pos", (vec4(0,0,0,1)).xyz );
+        shader.setUniformVec( "color", clr );
+
+        glEnable( GL_DEPTH_TEST );
+
+        drawFunc();
+    }
 }

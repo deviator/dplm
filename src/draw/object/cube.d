@@ -2,7 +2,7 @@ module draw.object.cube;
 
 public import draw.object.base;
 
-class Cube : BaseDrawObject
+class Cube : BaseShadeObject
 {
 protected:
 
@@ -49,11 +49,7 @@ protected:
             norm.setData( norm_data, GLBuffer.Usage.STATIC_DRAW );
     }
 
-    override void drawFunc()
-    {
-        if( pos.elementCount > 0 )
-            glDrawArrays( GL_TRIANGLES, 0, cast(uint)pos.elementCount );
-    }
+    override void drawFunc() { drawArrays( DrawMode.TRIANGLES ); }
 
 public:
 
@@ -85,20 +81,16 @@ class CellCube : Cube
     { setOffsetAndSize( a, b-a ); }
 }
 
-class MultiCube : BaseDrawObject
+class MultiCube : BaseShadeObject
 {
 protected:
 
     override void fillBuffers() { }
 
-    override void drawFunc()
-    {
-        if( pos.elementCount > 0 )
-            glDrawArrays( GL_TRIANGLES, 0, cast(uint)pos.elementCount );
-    }
-
     vec3[] full_pos_data,
            full_norm_data;
+
+    override void drawFunc() { drawArrays( DrawMode.TRIANGLES ); }
 
 public:
 
@@ -136,21 +128,23 @@ public:
             p7, p6, p2
             ];
 
-        auto norm_data =
-            multiElem( 6, vec3( 0, 0, 1) ) ~ // top
-            multiElem( 6, vec3( 0, 0,-1) ) ~ // bottom
-            multiElem( 6, vec3( 1, 0, 0) ) ~ // right
-            multiElem( 6, vec3(-1, 0, 0) ) ~ // left
-            multiElem( 6, vec3( 0, 1, 0) ) ~ // front
-            multiElem( 6, vec3( 0,-1, 0) ); // back
-
         full_pos_data ~= pos_data;
-        full_norm_data ~= norm_data;
-
         pos.setData( full_pos_data, GLBuffer.Usage.DYNAMIC_DRAW );
 
         if( norm !is null )
+        {
+            auto norm_data =
+                multiElem( 6, vec3( 0, 0, 1) ) ~ // top
+                multiElem( 6, vec3( 0, 0,-1) ) ~ // bottom
+                multiElem( 6, vec3( 1, 0, 0) ) ~ // right
+                multiElem( 6, vec3(-1, 0, 0) ) ~ // left
+                multiElem( 6, vec3( 0, 1, 0) ) ~ // front
+                multiElem( 6, vec3( 0,-1, 0) ); // back
+
+            full_norm_data ~= norm_data;
+
             norm.setData( full_norm_data, GLBuffer.Usage.DYNAMIC_DRAW );
+        }
     }
 
     void reset()

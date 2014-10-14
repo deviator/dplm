@@ -2,7 +2,7 @@ module draw.object.shader;
 
 public import des.gl.base;
 
-enum ShaderSource SS_BASE =
+enum ShaderSource SS_ShadeObject =
 {
 `#version 330
 in vec3 position;
@@ -47,7 +47,7 @@ void main(void)
 }`
 };
 
-enum ShaderSource SS_SIMPLE =
+enum ShaderSource SS_Simple =
 {
 `#version 330
 in vec3 position;

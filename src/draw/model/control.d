@@ -12,6 +12,7 @@ class Control
 private:
     Model model;
     World world;
+    DrawUnit unit;
 
 public:
 
@@ -19,6 +20,8 @@ public:
     in{ assert( model !is null ); } body
     {
         world = new World( vec2(1000,1000), 300 );
+        unit = new DrawUnit(null);
+        unit.matrix = mat4.diag(1).setCol(3,[0,0,50,1]);
     }
 
     void idle()
@@ -29,6 +32,7 @@ public:
     void draw( Camera cam )
     {
         world.draw( cam );
+        unit.draw( cam );
     }
 
     void keyControl( in KeyboardEvent ev )
