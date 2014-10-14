@@ -12,7 +12,6 @@ class Control
 private:
     Model model;
     World world;
-    DrawUnit unit;
 
 public:
 
@@ -20,12 +19,6 @@ public:
     in{ assert( model !is null ); } body
     {
         world = new World( vec2(1000,1000), 300 );
-
-        unit = new DrawUnit(null);
-        unit.matrix = mat4(1,0,0,0,
-                           0,1,0,0,
-                           0,0,1,40,
-                           0,0,0,1);
     }
 
     void idle()
@@ -36,7 +29,6 @@ public:
     void draw( Camera cam )
     {
         world.draw( cam );
-        unit.draw( cam );
     }
 
     void keyControl( in KeyboardEvent ev )

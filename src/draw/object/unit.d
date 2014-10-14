@@ -3,7 +3,7 @@ module draw.object.unit;
 public import draw.object.base;
 import std.math;
 
-class DrawUnit : GLObj, DrawNode
+class DrawUnit : GLObject, DrawNode
 {
 protected:
 

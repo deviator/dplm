@@ -64,7 +64,7 @@ public:
     void setParent( Node p ) { par = p; }
 }
 
-class BaseDrawObject : GLObj, DrawNode
+class BaseDrawObject : GLObject, DrawNode
 {
 protected:
     GLBuffer pos, norm;
