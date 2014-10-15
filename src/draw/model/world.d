@@ -36,7 +36,7 @@ class World : DrawNodeList
 
     void genRandomBuilds( in vec2 minPos, in vec2 maxPos, float maxH,
             in vec3 minBlock, in vec3 maxBlock, in vec3 step,
-            size_t count=1000 )
+            size_t count=100 )
     {
         auto volume = ivec3( (maxPos-minPos) / step.xy, maxH / step.z );
         auto minB = ivec3( minBlock / step );
