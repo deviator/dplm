@@ -37,11 +37,11 @@ class PID(T)
     }
 }
 
-class PIDA(T) : PID!T
+class APID(T) : PID!T
 {
     T add;
 
-    this( T p, T i, T d, T a )
+    this( T a, T p, T i, T d )
     {
         super(p,i,d);
         add = a;

@@ -89,7 +89,5 @@ public:
     void setParent( Node p ) { par = p; }
 
     void setCoordinate( in vec3 pos, in quat rot )
-    {
-        matrix = quatAndPosToMatrix( rot, pos );
-    }
+    { matrix = quatAndPosToMatrix( rot, pos ); }
 }

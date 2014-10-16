@@ -5,7 +5,7 @@ import des.util;
 import des.app;
 
 import draw.camera;
-import draw.model;
+import draw.control;
 import model;
 
 import std.stdio;
@@ -70,7 +70,7 @@ protected:
         keyproc.key.connect( &(cam.keyControl) );
 
         winproc.resized.connect( ( ivec2 sz )
-        { cam.perspective.aspect = sz.x / cast(float)sz.y; });
+        { cam.perspective.ratio = sz.x / cast(float)sz.y; });
 
         mouseproc.mouse.connect( &(cam.mouseControl) );
     }

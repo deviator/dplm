@@ -1,4 +1,4 @@
-module draw.model.world;
+module draw.object.world;
 
 import draw.object;
 

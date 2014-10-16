@@ -13,6 +13,8 @@ protected:
     Unit[] uarr;
     float time;
 
+    float danger_dist = 5;
+
 public:
     this()
     {
@@ -33,12 +35,13 @@ public:
             uarr ~= createDefaultUnit();
     }
 
+    /+ TODO: remove +/
     void randomizeTargets()
     {
-        auto rr = rndPos(50) + vec3(0,0,50);
+        auto rr = rndPos(50) + vec3(0,0,20);
         foreach( u; units )
-            u.setTarget( rr, vec3(0,0,0) );
-            //u.setTarget( u.coord.pos + rndPos(50), vec3(0,0,0) );
+            u.target = rr;
+            //u.target = u.pos + rndPos(50);;
     }
 
     @property Unit[] units() { return uarr; }
@@ -47,12 +50,11 @@ protected:
 
     void logic( float dt )
     {
-        processDanger();
+        processDangerUnits();
     }
 
-    void processDanger()
+    void processDangerUnits()
     {
-        float danger_dist = 7;
         auto cnt = units.length;
         foreach( i; 0 .. cnt )
             foreach( j; 0 .. cnt )
@@ -60,18 +62,19 @@ protected:
                 if( i == j ) continue;
                 auto a = units[i];
                 auto b = units[j];
-                if( (a.coord.pos - b.coord.pos).len2 < danger_dist * danger_dist )
+                if( (a.pos - b.pos).len2 < danger_dist * danger_dist )
                 {
-                    a.appendDanger( b.coord.pos );
-                    b.appendDanger( a.coord.pos );
+                    a.appendDanger( b.pos );
+                    b.appendDanger( a.pos );
                 }
             }
     }
 
     Unit createDefaultUnit()
     {
-        auto buf = new Unit( vec3(0,0,20) + rndPos(5), vec3(1,0,0) );
-        buf.setTarget( buf.coord.pos + rndPos(50), vec3(0,0,0) );
+        auto buf = new Unit( PhVec( vec3(0,0,20) + rndPos(5), vec3(1,0,0) ),
+                             UnitParams( vec2(20), 0, 60 ) );
+        buf.target = buf.pos + rndPos(50);
         return buf;
     }
 
