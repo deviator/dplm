@@ -24,48 +24,32 @@ private:
     World world;
     DrawUnit draw_unit;
     Point ddot;
-    //Point error, test;
 
     Render render; 
 
     Timer tm;
 
     bool model_proc = true;
-    bool view_depth_img = false;
-
-    TextureView depth_view;
 
     Image!2 buf_depth;
     vec3 buf_target;
 
-    //Plane pA, pB;
-
     MCamera cam;
+
+    bool draw_world_in_view = true;
 
 public:
 
-    this( Model model, MCamera c )
-    in{ assert( model !is null ); } body
+    this( MCamera c )
     {
         cam = c;
-        mdl = new Model;
+        mdl = new Model( ivec3(200) );
 
-        mdl.appendUnits( 1 );
+        mdl.appendUnits( 20 );
 
-        world = new World( vec2(400,400), 200 );
+        world = new World( vec2(200,200), 200 );
         render = new Render;
         draw_unit = new DrawUnit(null);
-        depth_view = new TextureView;
-
-        /+
-        pA = new Plane(null);
-        pA.setOffsetAndSize( vec3(0,0,0), vec2(400,400) );
-        pB = new Plane(null);
-        pB.matrix = mat4(0,0,3,0,
-                         0,3,0,0,
-                         3,0,0,0,
-                         0,0,0,1);
-        +/
 
         ddot = new Point(null);
 
@@ -96,7 +80,10 @@ public:
 
     void draw()
     {
-        world.draw( cam );
+        if( draw_world_in_view )
+            world.draw( cam );
+
+        ddot.reset();
 
         foreach( i, u; mdl.units )
         {
@@ -104,31 +91,16 @@ public:
                 draw_unit.color = col4(0,1,0,1);
             else
                 draw_unit.color = col4(1,0,0,1);
-            draw_unit.setCoordinate( u.pos, u.rot );
+            draw_unit.setParent(u);
             draw_unit.draw( cam );
-
-            ddot.setParent( draw_unit );
-            ddot.set( u.lastSnapshot );
-            ddot.draw( cam );
 
             draw_unit.color = col4(0,0,1,0.5);
             draw_unit.setCoordinate( u.target, u.rot );
             draw_unit.draw( cam );
-        }
 
-        if( view_depth_img )
-            depth_view.draw(
-            {
-                render.depth.bind();
-                auto ir = cast(float)( buf_depth.size.w ) / buf_depth.size.h;
-                int[4] vp;
-                glGetIntegerv( GL_VIEWPORT, vp.ptr );
-                auto vr = cast(float)( vp[2] ) / vp[3];
-                depth_view.setImgRatio(ir);
-                depth_view.setViewRatio(vr);
-                depth_view.setScale( vec2(0.3,0.3) );
-                depth_view.setOffset( vec2(-0.5,-0.5) );
-            });
+            ddot.add( u.lastSnapshot );
+            ddot.draw( cam );
+        }
     }
 
     void quit() { }
@@ -137,7 +109,6 @@ public:
     {
         if( ev.pressed )
         {
-                    auto t = mdl.units[$-1].target;
             switch( ev.scan )
             {
                 case ev.Scan.P:
@@ -145,13 +116,17 @@ public:
                     model_proc = !model_proc;
                     break;
 
-                /+ TODO: remove +/
-                case ev.Scan.R:
-                    mdl.randomizeTargets();
+                case ev.Scan.W:
+                    draw_world_in_view = !draw_world_in_view;
                     break;
 
                 case ev.Scan.D:
-                    view_depth_img = !view_depth_img;
+                    ddot.needDraw = !ddot.needDraw;
+                    break;
+
+                /+ TODO: remove +/
+                case ev.Scan.R:
+                    mdl.randomizeTargets();
                     break;
 
                 case ev.Scan.G:
@@ -161,16 +136,6 @@ public:
                 case ev.Scan.NUMBER_1:
                     cam.target = buf_target;
                     break;
-
-                case ev.Scan.H:
-                    mdl.units[$-1].target = vec3( t.x+0.1, t.yz );
-                    //world.regen( vec2(400,400), 200 );
-                    break;
-
-                case ev.Scan.L:
-                    mdl.units[$-1].target = vec3( t.x-0.1, t.yz );
-                    break;
-
 
                 default: break;
             }

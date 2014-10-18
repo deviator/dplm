@@ -49,7 +49,7 @@ class World : DrawNodeList
         auto minB = ivec3( minBlock / step );
         auto maxB = ivec3( maxBlock / step );
         auto arr = genRandomCCData( volume, minB, maxB, count );
-        appendToList( arr, step, vec3( minPos, 0 ) );
+        appendCCToList( arr, step, vec3( minPos, 0 ) );
     }
 
     CCData[] genRandomCCData( ivec3 volume, ivec3 minB, ivec3 maxB, size_t count, size_t attemptLim=10 )
@@ -122,7 +122,7 @@ class World : DrawNodeList
                a.has( b.pos + b.size );
     }
 
-    void appendToList( CCData[] arr, vec3 step, vec3 offset )
+    void appendCCToList( CCData[] arr, vec3 step, vec3 offset )
     {
         auto mc = new MultiCube(null);
         foreach( c; arr )

@@ -20,6 +20,9 @@ interface DrawNode : Node
         mat4 matrix( in mat4 m );
 
         const(Node) parent() const;
+
+        bool needDraw() const;
+        void needDraw( bool nd );
     }
 
     void setParent( Node p );
@@ -34,6 +37,7 @@ protected:
     DrawNode[] list;
 
     col4 clr;
+    bool need_draw = true;
 
 public:
 
@@ -59,6 +63,14 @@ public:
         { mtr = m; return mtr; }
 
         const(Node) parent() const { return par; }
+
+        bool needDraw() const { return need_draw; }
+        void needDraw( bool nd )
+        {
+            need_draw = nd;
+            foreach( obj; list )
+                obj.needDraw = nd;
+        }
     }
 
     void setParent( Node p ) { par = p; }
@@ -95,6 +107,9 @@ public:
         { mtr = m; return mtr; }
 
         const(Node) parent() const { return par; }
+
+        bool needDraw() const { return draw_flag; }
+        void needDraw( bool nd ) { draw_flag = nd; }
     }
 
     void setParent( Node p ) { par = p; }

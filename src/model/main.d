@@ -5,20 +5,27 @@ import std.stdio;
 import des.math.linear;
 
 import model.unit;
+import model.worldmap;
 
 class Model
 {
 protected:
 
+    WorldMap wmap;
+    
+    UnitParams uparams;
     Unit[] uarr;
     float time;
 
     float danger_dist = 5;
 
 public:
-    this()
+    this( ivec3 mapres )
     {
         time = 0;
+        wmap = new WorldMap( mapres, mat4().setCol(3,vec4(mapres.x,mapres.y,0,1)) );
+
+        prepareParams();
     }
 
     void step( float dt )
@@ -46,6 +53,34 @@ public:
 
 protected:
 
+    void prepareParams()
+    {
+        auto glim = vec2(20);
+
+        with(uparams)
+        {
+            flim.min = vec3(-glim,0);
+            flim.max = vec3(glim,60);
+
+            CxS = 0.1;
+            mass = 2;
+
+            ready.dst = 0.05;
+            ready.vel = 0.01;
+
+            apid = [ vec3(0,0,9.81*2),
+                     vec3(3),
+                     vec3(0),
+                     vec3(4) ];
+
+            cam.fov = 90;
+            cam.min = 1;
+            cam.max = 150;
+            cam.size = ivec2(32,32);
+            cam.rate = 2;
+        }
+    }
+
     void logic( float dt )
     {
         processDangerUnits();
@@ -70,35 +105,8 @@ protected:
 
     Unit createDefaultUnit()
     {
-        UnitParams prms;
-
-        auto glim = vec2(20);
-
-        with(prms)
-        {
-            flim.min = vec3(-glim,0);
-            flim.max = vec3(glim,60);
-
-            CxS = 0.1;
-            mass = 2;
-
-            ready.dst = 0.05;
-            ready.vel = 0.01;
-
-            apid = [ vec3(0,0,9.81*2),
-                     vec3(3),
-                     vec3(0),
-                     vec3(4) ];
-
-            cam.fov = 90;
-            cam.min = 1;
-            cam.max = 150;
-            cam.size = ivec2(32,32);
-            cam.rate = 10;
-        }
-
-        auto s = vec3(0,0,30);
-        auto buf = new Unit( PhVec( s, vec3(0) ), prms );
+        auto s = vec3(0,0,30) + rndPos(10);
+        auto buf = new Unit( PhVec(s,vec3(0)), uparams, wmap );
         buf.target = s;
         return buf;
     }

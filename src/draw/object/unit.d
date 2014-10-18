@@ -84,10 +84,20 @@ public:
         { mtr = m; return mtr; }
 
         const(Node) parent() const { return par; }
+
+        bool needDraw() const { return draw_flag; }
+        void needDraw( bool nd ) { draw_flag = nd; }
     }
 
-    void setParent( Node p ) { par = p; }
+    void setParent( Node p )
+    {
+        matrix = mat4();
+        par = p;
+    }
 
     void setCoordinate( in vec3 pos, in quat rot )
-    { matrix = quatAndPosToMatrix( rot, pos ); }
+    {
+        matrix = quatAndPosToMatrix( rot, pos );
+        par = null;
+    }
 }

@@ -10,6 +10,7 @@ import des.il;
 
 import model.pid;
 import model.util;
+import model.worldmap;
 
 import std.stdio;
 
@@ -38,11 +39,17 @@ struct UnitParams
            ivec2,"size",
            float,"rate") cam;
 
-    @property float cam_ratio() const
+    @property float camRatio() const
     { return cast(float)( cam.size.x ) / cam.size.y; }
+
+    float maxResultDist( float cell ) const
+    {
+        auto maxAngleResolution = (cam.fov / 180 * PI) / cam.size.y;
+        return abs( cell / tan(maxAngleResolution) );
+    }
 }
 
-class Unit
+class Unit : Node
 {
 protected:
 
@@ -61,9 +68,12 @@ protected:
 
     SimpleCamera cam;
 
+    WorldMap wmap;
+
 public:
 
-    this( PhVec initial, UnitParams prms )
+    this( PhVec initial, UnitParams prms, WorldMap worldmap )
+    in{ assert( worldmap !is null ); } body
     {
         phcrd = initial;
         params = prms;
@@ -73,19 +83,25 @@ public:
         pos_APID = new APID!vec3( prms.apid[0], prms.apid[1],
                                   prms.apid[2], prms.apid[3] );
 
-        cam = new SimpleCamera;
+        wmap = worldmap;
 
-        cam.fov = prms.cam.fov;
-        cam.ratio = prms.cam_ratio;
-        cam.near = prms.cam.min;
-        cam.far = prms.cam.max;
+        cam = new SimpleCamera(this);
+        prepareCamera();
     }
 
     @property
     {
-        vec3 pos() const { return phcrd.pos; }
-        vec3 vel() const { return phcrd.vel; }
-        quat rot() const { return phcrd.rot; }
+        const
+        {
+            vec3 pos() { return phcrd.pos; }
+            vec3 vel() { return phcrd.vel; }
+            quat rot() { return phcrd.rot; }
+
+            /+ interface Node +/
+            mat4 matrix() { return quatAndPosToMatrix( phcrd.rot, phcrd.pos ); }
+            const(Node) parent() { return null; }
+            /+ --//-- +/
+        }
         
         void target( in vec3 tp ) { trg_pos = tp; }
         vec3 target() const { return trg_pos; }
@@ -112,7 +128,6 @@ public:
         { return params.cam.size; }
     }
 
-
     void step( float t, float dt )
     {
         phcrd += rpart( t, dt ) * dt;
@@ -126,13 +141,30 @@ public:
     void addSnapshot( in Image!2 img )
     {
         snapshot_timer = 0;
+        updatePoints( img );
+        updateMap();
+    }
 
+protected:
+
+    void prepareCamera()
+    {
+        cam.fov   = params.cam.fov;
+        cam.ratio = params.camRatio;
+        cam.near  = params.cam.min;
+        cam.far   = params.cam.max;
+    }
+
+    void updatePoints( in Image!2 img )
+    {
         auto ih = img.size.h;
         auto iw = img.size.w;
 
         ldpoints.length = 0;
-        //ldpoints.length = iw * ih;
-        auto m = cam.projection.matrix.inv;
+        auto pr_inv = cam.projection.matrix.inv;
+        auto tr_inv = matrix * cam.transform.matrix;
+
+        auto mrd = params.maxResultDist( wmap.minCellSize );
 
         foreach( iy; 0 .. ih )
             foreach( ix; 0 .. iw )
@@ -141,33 +173,36 @@ public:
 
                 if( val > 1-1e-6 || val < 1e-6 ) continue;
 
-                auto ind = iy * iw + ix;
-
                 auto fx = (ix+0.5f) / iw * 2 - 1;
                 auto fy = (iy+0.5f) / ih * 2 - 1;
 
-                auto b = project( m, vec3(fx,fy,val) );
+                auto b = project( pr_inv, vec3(fx,fy,val) );
 
                 b *= getCorrect( b.z );
+                //if( abs(b.z) > mrd ) continue;
 
-                auto p = vec3( -b.z, -b.x, b.y );
-                ldpoints ~= [ pos, p ];
-                //ldpoints[ind] = p;
+                b = project( tr_inv, b );
+
+                auto p = b;
+                ldpoints ~= p;
             }
     }
 
-protected:
-
-    float getCorrect( float val_z )
+    void updateMap()
     {
-        auto p = abs( val_z / cam.far );
-        return 1 - getDepthRelativeError( p ) / p;
+        //wmap.setPoints
     }
 
     vec3 project( in mat4 m, in vec3 v )
     {
         auto buf = m * vec4(v,1.0f);
         return buf.xyz / buf.w;
+    }
+
+    float getCorrect( float val_z )
+    {
+        auto p = abs( val_z / cam.far );
+        return 1 - getDepthRelativeError( p ) / p;
     }
 
     PhVec rpart( float t, float dt )
@@ -219,8 +254,7 @@ protected:
 
     void updateCamera()
     {
-        cam.pos = pos;
-        cam.target = pos + vec3(1,0,0);
+        cam.target = vec3(1,0,0);
         //cam.target = look_pnt;
     }
 }

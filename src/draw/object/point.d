@@ -38,7 +38,8 @@ public:
         shader.setUniformVec( "color", clr );
 
         glPointSize(2);
-        drawArrays( DrawMode.POINTS );
+        if( data.length )
+            drawArrays( DrawMode.POINTS );
     }
 
 protected:
