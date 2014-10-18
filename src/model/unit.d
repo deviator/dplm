@@ -30,6 +30,7 @@ struct UnitParams
     float mass;
 
     Tuple!( float, "dst", float, "vel" ) ready;
+    float min_move;
 
     vec3[4] apid;
 
@@ -59,6 +60,7 @@ protected:
     float snapshot_timer = 0;
 
     vec3 trg_pos;
+    vec3 last_snapshot_pos;
     vec3 look_pnt;
 
     vec3[] dangers;
@@ -69,6 +71,7 @@ protected:
     SimpleCamera cam;
 
     WorldMap wmap;
+    bool ready_to_snapshot = true;
 
 public:
 
@@ -103,7 +106,12 @@ public:
             /+ --//-- +/
         }
         
-        void target( in vec3 tp ) { trg_pos = tp; }
+        void target( in vec3 tp )
+        {
+            trg_pos = tp;
+            ready_to_snapshot = true;
+        }
+
         vec3 target() const { return trg_pos; }
 
         void lookPnt( in vec3 lp ) { look_pnt = lp; }
@@ -122,7 +130,13 @@ public:
         }
 
         bool readyToSnapshot() const
+        { return snapshotTimeout && hasMinMoveFromLastSnapshot; }
+
+        bool snapshotTimeout() const
         { return snapshot_timer > 1.0f / params.cam.rate; }
+
+        bool hasMinMoveFromLastSnapshot() const
+        { return (last_snapshot_pos - pos).len2 > pow( params.min_move, 2 ); }
 
         ivec2 snapshotResolution() const
         { return params.cam.size; }
@@ -141,6 +155,7 @@ public:
     void addSnapshot( in Image!2 img )
     {
         snapshot_timer = 0;
+        last_snapshot_pos = pos;
         updatePoints( img );
         updateMap();
     }
@@ -179,7 +194,7 @@ protected:
                 auto b = project( pr_inv, vec3(fx,fy,val) );
 
                 b *= getCorrect( b.z );
-                //if( abs(b.z) > mrd ) continue;
+                if( abs(b.z) > mrd ) continue;
 
                 b = project( tr_inv, b );
 
@@ -190,7 +205,7 @@ protected:
 
     void updateMap()
     {
-        //wmap.setPoints
+        wmap.setPoints( pos, ldpoints );
     }
 
     vec3 project( in mat4 m, in vec3 v )
@@ -254,7 +269,13 @@ protected:
 
     void updateCamera()
     {
-        cam.target = vec3(1,0,0);
-        //cam.target = look_pnt;
+        cam.target = (matrix.inv * vec4(lookTarget,1)).xyz;
+    }
+
+    @property vec3 lookTarget() const
+    {
+        if( (pos - target).len2 < pow(params.min_move,2) )
+            return look_pnt;
+        else return target;
     }
 }

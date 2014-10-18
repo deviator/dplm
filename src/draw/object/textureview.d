@@ -5,8 +5,7 @@ public import des.math.linear;
 
 import des.il;
 
-enum ShaderSource SS_DepthTextureView =
-{
+enum SS_DepthTextureView = ShaderSource(
 `#version 330
 in vec2 pos;
 in vec2 uv;
@@ -33,9 +32,8 @@ void main()
     float d = texture( depth, iuv ).r;
     vec3 dv3 = vec3(d);
     color = vec4( dv3, 1 );
-}
-`
-};
+}`
+);
 
 class TextureView : GLSimpleObject
 {

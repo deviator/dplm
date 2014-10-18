@@ -10,20 +10,27 @@ import model.worldmap;
 class Model
 {
 protected:
-
-    WorldMap wmap;
     
     UnitParams uparams;
     Unit[] uarr;
     float time;
 
     float danger_dist = 5;
+    vec2 mapsize;
 
 public:
-    this( ivec3 mapres )
+
+    WorldMap wmap;
+
+    this( ivec3 mapres, vec3 cellsize )
     {
         time = 0;
-        wmap = new WorldMap( mapres, mat4().setCol(3,vec4(mapres.x,mapres.y,0,1)) );
+
+        auto offset = vec3(mapres) * cellsize / 2;
+        auto mmat = mat4.diag(cellsize,1).setCol( 3, vec4(-offset.xy,0,1) );
+        wmap = new WorldMap( mapres, mmat );
+
+        mapsize = (mmat*vec4(mapres,0)).xy;
 
         prepareParams();
     }
@@ -46,7 +53,10 @@ public:
     void randomizeTargets()
     {
         foreach( u; units )
-            u.target = u.pos + vec3( rndPos(50).xy, rndPos(10).z );
+        {
+            u.target = vec3( rndPos(mapsize.x/2).xy, rndPos(20).z + 22 );
+            u.lookPnt = vec3( rndPos(mapsize.x/2).xy, 0 );
+        }
     }
 
     @property Unit[] units() { return uarr; }
@@ -67,6 +77,7 @@ protected:
 
             ready.dst = 0.05;
             ready.vel = 0.01;
+            min_move = 0.2;
 
             apid = [ vec3(0,0,9.81*2),
                      vec3(3),
@@ -105,7 +116,7 @@ protected:
 
     Unit createDefaultUnit()
     {
-        auto s = vec3(0,0,30) + rndPos(10);
+        auto s = vec3(0,0,130) + rndPos(10);
         auto buf = new Unit( PhVec(s,vec3(0)), uparams, wmap );
         buf.target = s;
         return buf;

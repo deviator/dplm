@@ -11,6 +11,8 @@ import draw.camera;
 import draw.object.world;
 import draw.object.point;
 import draw.object.plane;
+import draw.object.worldmap;
+
 import des.gl.post.render;
 
 import des.il;
@@ -23,6 +25,7 @@ private:
     Model mdl;
     World world;
     DrawUnit draw_unit;
+    DrawWorldMap worldmap;
     Point ddot;
 
     Render render; 
@@ -43,13 +46,15 @@ public:
     this( MCamera c )
     {
         cam = c;
-        mdl = new Model( ivec3(200) );
+        mdl = new Model( ivec3(100,100,25), vec3(2) );
 
         mdl.appendUnits( 20 );
 
-        world = new World( vec2(200,200), 200 );
+        world = new World( vec2(100,100), 50 );
         render = new Render;
         draw_unit = new DrawUnit(null);
+
+        worldmap = new DrawWorldMap(null);
 
         ddot = new Point(null);
 
@@ -64,13 +69,10 @@ public:
         if( model_proc )
         {
             foreach( u; mdl.units )
-                //if( u.nearTarget && u.readyToSnapshot )
                 if( u.readyToSnapshot )
                 {
                     render( u.snapshotResolution,
-                    {
-                        world.draw( u.camera );
-                    });
+                    { world.draw( u.camera ); });
                     render.depth.getImage( buf_depth );
                     u.addSnapshot( buf_depth );
                 }
@@ -101,6 +103,9 @@ public:
             ddot.add( u.lastSnapshot );
             ddot.draw( cam );
         }
+
+        worldmap.setData( mdl.wmap );
+        worldmap.draw( cam );
     }
 
     void quit() { }
@@ -122,6 +127,10 @@ public:
 
                 case ev.Scan.D:
                     ddot.needDraw = !ddot.needDraw;
+                    break;
+
+                case ev.Scan.M:
+                    worldmap.needDraw = !worldmap.needDraw;
                     break;
 
                 /+ TODO: remove +/
