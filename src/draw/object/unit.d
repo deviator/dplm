@@ -7,7 +7,7 @@ class DrawUnit : GLSimpleObject, DrawNode
 {
 protected:
 
-    GLBuffer pos, norm;
+    GLBuffer pos;
 
     col4 clr;
 

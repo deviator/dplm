@@ -23,14 +23,24 @@ public:
     {
         super();
         look_tr = new LookAtTransform;
-        orb = vec3(10,20,5);
-        look_tr.target = vec3(0,0,0);
+        orb = vec3(0,10,2);
+        look_tr.target = vec3(-5,0,0);
         look_tr.up = vec3(0,0,1);
-        look_tr.pos = orb + look_tr.target;
+        updatePos();
         transform = look_tr;
         perspective = new PerspectiveTransform; 
         perspective.near = 1;
         projection = perspective;
+    }
+
+    @property 
+    {
+        void target( in vec3 t )
+        {
+            look_tr.target = t;
+            updatePos();
+        }
+        vec3 target() const { return look_tr.target; }
     }
 
     void addRotate( in vec2 angle )

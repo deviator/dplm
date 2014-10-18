@@ -22,7 +22,14 @@ class World : DrawNodeList
 {
     this( in vec2 size, float maxH, in vec3 minBlock=vec3(10,10,4),
                                     in vec3 maxBlock=vec3(100,100,40) )
+    { regen( size, maxH, minBlock, maxBlock ); }
+
+    void regen( in vec2 size, float maxH, in vec3 minBlock=vec3(10,10,4),
+                                        in vec3 maxBlock=vec3(100,100,40) )
     {
+        foreach( o; list ) o.destroy();
+        list.length = 0;
+
         genPlane( size * 2 );
         genRandomBuilds( -size, size, maxH, minBlock, maxBlock, vec3(10,10,2) );
     }

@@ -35,7 +35,7 @@ protected:
     void createData()
     {
         cam  = new MCamera;
-        ctrl = new Control( new Model );
+        ctrl = new Control( new Model, cam );
     }
 
     void createEventProcessors()
@@ -56,7 +56,13 @@ protected:
         idle.connect({ glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ); });
 
         keyproc.key.connect( ( in KeyboardEvent ev )
-        { if( ev.scan == ev.Scan.ESCAPE ) app.quit(); });
+        {
+            if( ev.scan == ev.Scan.ESCAPE )
+            {
+                ctrl.quit();
+                app.quit();
+            }
+        });
 
         winproc.resized.connect(( ivec2 sz ){ glViewport( 0, 0, sz.x, sz.y ); });
     }
@@ -64,7 +70,7 @@ protected:
     void prepareDataSignals()
     {
         idle.connect({ ctrl.idle(); });
-        draw.connect({ ctrl.draw( cam ); });
+        draw.connect({ ctrl.draw(); });
 
         keyproc.key.connect( &(ctrl.keyControl) );
         keyproc.key.connect( &(cam.keyControl) );

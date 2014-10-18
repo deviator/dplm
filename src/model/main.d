@@ -38,10 +38,8 @@ public:
     /+ TODO: remove +/
     void randomizeTargets()
     {
-        auto rr = rndPos(50) + vec3(0,0,20);
         foreach( u; units )
-            u.target = rr;
-            //u.target = u.pos + rndPos(50);;
+            u.target = u.pos + vec3( rndPos(50).xy, rndPos(10).z );
     }
 
     @property Unit[] units() { return uarr; }
@@ -72,9 +70,36 @@ protected:
 
     Unit createDefaultUnit()
     {
-        auto buf = new Unit( PhVec( vec3(0,0,20) + rndPos(5), vec3(1,0,0) ),
-                             UnitParams( vec2(20), 0, 60 ) );
-        buf.target = buf.pos + rndPos(50);
+        UnitParams prms;
+
+        auto glim = vec2(20);
+
+        with(prms)
+        {
+            flim.min = vec3(-glim,0);
+            flim.max = vec3(glim,60);
+
+            CxS = 0.1;
+            mass = 2;
+
+            ready.dst = 0.05;
+            ready.vel = 0.01;
+
+            apid = [ vec3(0,0,9.81*2),
+                     vec3(3),
+                     vec3(0),
+                     vec3(4) ];
+
+            cam.fov = 90;
+            cam.min = 1;
+            cam.max = 150;
+            cam.size = ivec2(32,32);
+            cam.rate = 10;
+        }
+
+        auto s = vec3(0,0,30);
+        auto buf = new Unit( PhVec( s, vec3(0) ), prms );
+        buf.target = s;
         return buf;
     }
 
