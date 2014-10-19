@@ -193,13 +193,13 @@ protected:
 
                 auto b = project( pr_inv, vec3(fx,fy,val) );
 
-                float fp = 1;
+                float fp = val < 1-1e-6 ? 1.0f : 0.0f;
                 b *= getCorrect( b.z );
-                if( abs(b.z) > mrd )
-                {
-                    fp = 0;
-                    b *= mrd / abs(b.z);
-                }
+                //if( abs(b.z) > mrd )
+                //{
+                //    fp = 0;
+                //    b *= mrd / abs(b.z);
+                //}
 
                 b = project( tr_inv, b );
 
@@ -212,9 +212,7 @@ protected:
     { return reduce!min(wmap.cellSize.data.dup); }
 
     void updateMap()
-    {
-        wmap.setPoints( pos, ldpoints );
-    }
+    { wmap.setPoints( pos, ldpoints ); }
 
     vec3 project( in mat4 m, in vec3 v )
     {

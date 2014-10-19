@@ -1,6 +1,7 @@
 module model.main;
 
 import std.stdio;
+import std.random;
 
 import des.math.linear;
 
@@ -50,7 +51,7 @@ public:
         auto mapsize = vec3(wmap.size) * wmap.cellSize;
         foreach( u; units )
         {
-            u.target = vec3( rndPos(mapsize.x/2).xy, rndPos(20).z + 22 );
+            u.target = vec3( rndPos(mapsize.x/2).xy, uniform(0.0f,20.0f) );
             u.lookPnt = vec3( rndPos(mapsize.x/2).xy, 0 );
         }
     }
@@ -84,7 +85,7 @@ protected:
             cam.min = 1;
             cam.max = 150;
             cam.size = ivec2(32,32);
-            cam.rate = 2;
+            cam.rate = 5;
         }
     }
 
@@ -120,7 +121,6 @@ protected:
 
     vec3 rndPos( float dst )
     {
-        import std.random;
         auto uf() { return uniform(-dst,dst); }
         return vec3( uf, uf, uf*0.5 );
     }

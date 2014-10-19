@@ -14,25 +14,47 @@ class CLWorldMap : BaseDrawObject, WorldMap
 {
 protected:
 
-    class CLMem
+    class MainDataBuffer : GLArrayBuffer
     {
         CLGLMemory mem;
 
-        this( GLBuffer buf )
+        this(T)( string name, uint cnt, GLType type, T[] data )
         {
+            super();
+            auto loc = shader.getAttribLocation( name );
+            setAttribPointer( this, loc, cnt, type );
+            setData( data );
+
             mem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
-                                 CLMemory.Flags.READ_WRITE, buf ) );
+                                 CLMemory.Flags.READ_WRITE, this ) );
         }
 
         void acquireFromGL() { mem.acquireFromGL( cmdqueue ); }
-
         void releaseToGL() { mem.releaseToGL( cmdqueue ); }
     }
 
-    GLBuffer data, pnts;
-    CLMem cl_data, cl_pnts;
+    class SBuffer : GLBuffer
+    {
+        CLGLMemory mem;
+
+        this()
+        {
+            super( Target.ARRAY_BUFFER );
+            setData( [0] );
+            mem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
+                                 CLMemory.Flags.READ_WRITE, this ) );
+        }
+
+        void acquireFromGL() { mem.acquireFromGL( cmdqueue ); }
+        void releaseToGL() { mem.releaseToGL( cmdqueue ); }
+    }
+
+    MainDataBuffer data;
+
+    SBuffer pnts;
 
     alias Vector!(8,float) PntData;
+    alias Vector!(8,uint) VolumeData;
     PntData[] pnts_tmp_data;
 
     mat4 mapmtr;
@@ -42,6 +64,7 @@ protected:
     CLCommandQueue cmdqueue;
 
     CLKernel update;
+    CLKernel nearfind;
 
 public:
 
@@ -60,6 +83,24 @@ public:
             pnts_tmp_data ~= PntData( from, 0.0f, pnt );
     }
 
+    vec3[] getNear( in vec3 pos[], float dst )
+    {
+        return [];
+        //auto volumes = getVolumes( pos, dst );
+        //auto count = getCount( volumes );
+
+
+        //auto tr = matrix.inv;
+
+        //size_t maxcount;
+
+        //foreach( p; pos )
+        //{
+        //    auto pmin = tr * vec4( pos - vec3(dst), 1 )).xyz;
+        //    auto pmax = tr * vec4( pos + vec3(dst), 1 )).xyz;
+        //}
+    }
+
     void process()
     {
         if( pnts_tmp_data.length == 0 ) return;
@@ -72,17 +113,17 @@ public:
         glFlush();
         glFinish();
 
-        cl_data.acquireFromGL();
-        cl_pnts.acquireFromGL();
+        data.acquireFromGL();
+        pnts.acquireFromGL();
 
-        update.setArgs( cl_data.mem, to!(uint[4])( mres.data ~ 0 ),
-                        cl_pnts.mem, cast(uint)pnts.elementCount,
+        update.setArgs( data.mem, to!(uint[4])( mres.data ~ 0 ),
+                        pnts.mem, cast(uint)pnts.elementCount,
                         cast(float[16])transform.asArray[0..16]
                        );
         update.exec( cmdqueue, 1, [0], [1024], [32] );
 
-        cl_pnts.releaseToGL();
-        cl_data.releaseToGL();
+        pnts.releaseToGL();
+        data.releaseToGL();
 
         cmdqueue.flush();
     }
@@ -158,15 +199,9 @@ protected:
     {
         auto cnt = mres.w * mres.h * mres.d;
 
-        data = createArrayBuffer();
-        auto loc = shader.getAttribLocation( "data" );
-        setAttribPointer( data, loc, 1, GLType.FLOAT );
-        data.setData( new float[](cnt) );
+        data = registerChildEMM( new MainDataBuffer( "data", 1, GLType.FLOAT,
+                                                      new float[](cnt) ) );
 
-        pnts = registerChildEMM( new GLBuffer );
-        pnts.setData( [vec3.init] );
-
-        cl_data = new CLMem( data );
-        cl_pnts = new CLMem( pnts );
+        pnts = registerChildEMM( new SBuffer() );
     }
 }

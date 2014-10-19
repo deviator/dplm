@@ -57,4 +57,12 @@ kernel void update( global float* map, const uint4 esize,
             map[index( size, (uint3)( b.x, b.y, b.z ) )] = 1;
     }
 }
+
+//kernel void nearfind( global float* map, const uint4 esize,
+//                      global uint8* volume, const uint count,
+//                      global float4* near
+//                     )
+//{
+//
+//}
 `;
