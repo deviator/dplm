@@ -2,6 +2,7 @@ module model.unit;
 
 import std.math;
 import std.typecons;
+import std.algorithm;
 
 import des.math.linear;
 import des.math.basic;
@@ -179,7 +180,7 @@ protected:
         auto pr_inv = cam.projection.matrix.inv;
         auto tr_inv = matrix * cam.transform.matrix;
 
-        auto mrd = params.maxResultDist( wmap.minCellSize );
+        auto mrd = params.maxResultDist( minCellSize );
 
         foreach( iy; 0 .. ih )
             foreach( ix; 0 .. iw )
@@ -202,6 +203,9 @@ protected:
                 ldpoints ~= p;
             }
     }
+
+    @property float minCellSize() const
+    { return reduce!min(wmap.cellSize.data.dup); }
 
     void updateMap()
     {

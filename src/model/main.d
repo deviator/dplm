@@ -18,20 +18,15 @@ protected:
     float danger_dist = 5;
     vec2 mapsize;
 
-public:
-
     WorldMap wmap;
 
-    this( ivec3 mapres, vec3 cellsize )
+public:
+
+    this( WorldMap worldmap )
+    in{ assert( worldmap !is null ); } body
     {
         time = 0;
-
-        auto offset = vec3(mapres) * cellsize / 2;
-        auto mmat = mat4.diag(cellsize,1).setCol( 3, vec4(-offset.xy,0,1) );
-        wmap = new WorldMap( mapres, mmat );
-
-        mapsize = (mmat*vec4(mapres,0)).xy;
-
+        wmap = worldmap;
         prepareParams();
     }
 
@@ -52,6 +47,7 @@ public:
     /+ TODO: remove +/
     void randomizeTargets()
     {
+        auto mapsize = vec3(wmap.size) * wmap.cellSize;
         foreach( u; units )
         {
             u.target = vec3( rndPos(mapsize.x/2).xy, rndPos(20).z + 22 );

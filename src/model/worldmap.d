@@ -4,6 +4,19 @@ import model.mapdata;
 
 import des.math.linear;
 
+interface WorldMap : Node
+{
+    alias Vector!(3,size_t,"w h d") mapsize_t;
+
+    void setPoints( in vec3 from, in vec3[] pnts );
+
+    mapsize_t size() const;
+
+    final vec3 cellSize() const
+    { return (matrix * vec4(1,1,1,0)).xyz; }
+}
+
+/+
 class WorldMap : Node
 {
     static struct Element
@@ -48,7 +61,6 @@ class WorldMap : Node
                         vals[ivec3(v)].val = 0;
                         vals[ivec3(v)].prop = 1;
                     }
-
                 }
             }
         }
@@ -84,3 +96,4 @@ unittest
     auto b = WorldMap.mlt( m, v );
     assert( eq(a,b) );
 }
++/

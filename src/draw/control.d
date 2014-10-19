@@ -11,7 +11,7 @@ import draw.camera;
 import draw.object.world;
 import draw.object.point;
 import draw.object.plane;
-import draw.object.worldmap;
+import draw.worldmap;
 
 import des.gl.post.render;
 
@@ -24,8 +24,8 @@ class Control
 private:
     Model mdl;
     World world;
+    CLWorldMap worldmap;
     DrawUnit draw_unit;
-    DrawWorldMap worldmap;
     Point ddot;
 
     Render render; 
@@ -46,15 +46,16 @@ public:
     this( MCamera c )
     {
         cam = c;
-        mdl = new Model( ivec3(100,100,25), vec3(2) );
+
+        worldmap = new CLWorldMap( ivec3(100,100,25), vec3(2) );
+
+        mdl = new Model( worldmap );
 
         mdl.appendUnits( 20 );
 
         world = new World( vec2(100,100), 50 );
         render = new Render;
         draw_unit = new DrawUnit(null);
-
-        worldmap = new DrawWorldMap(null);
 
         ddot = new Point(null);
 
@@ -104,7 +105,6 @@ public:
             ddot.draw( cam );
         }
 
-        worldmap.setData( mdl.wmap );
         worldmap.draw( cam );
     }
 
