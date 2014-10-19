@@ -1,42 +1,39 @@
 module draw.worldmap;
 
 import std.stdio;
+import std.conv;
+
+import des.cl;
+import des.cl.helpers;
 
 public import draw.object.base;
 import model.worldmap;
-
-import std.conv;
-import des.cl;
-import des.cl.helpers;
+import draw.clsource;
 
 class CLWorldMap : BaseDrawObject, WorldMap
 {
 protected:
-    class GLCLBuffer : GLBuffer
+
+    class CLMem
     {
-        CLGLMemory clmem;
+        CLGLMemory mem;
 
-        this(T)( T[] data )
+        this( GLBuffer buf )
         {
-            super( Target.ARRAY_BUFFER );
-            setData( data );
-            createCLMem();
+            mem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
+                                 CLMemory.Flags.READ_WRITE, buf ) );
         }
 
-        void createCLMem()
-        {
-            clmem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
-                        CLMemory.Flags.READ_WRITE, this ) );
-        }
+        void acquireFromGL() { mem.acquireFromGL( cmdqueue ); }
 
-        void acquireFromGL()
-        { clmem.acquireFromGL( cmdqueue ); }
-
-        void releaseToGL()
-        { clmem.releaseToGL( cmdqueue ); }
+        void releaseToGL() { mem.releaseToGL( cmdqueue ); }
     }
 
-    GLCLBuffer data, pnts;
+    GLBuffer data, pnts;
+    CLMem cl_data, cl_pnts;
+
+    alias Vector!(8,float) PntData;
+    PntData[] pnts_data;
 
     mat4 mapmtr;
     mapsize_t mres;
@@ -50,36 +47,44 @@ public:
 
     this( ivec3 res, vec3 cell )
     {
-        /+ TODO: true mapmtr +/
-        matrix = mat4.diag( cell, 1 ).setCol(3, vec4(-res,1) );
+        mapmtr = mat4.diag( cell, 1 ).setCol(3, vec4(vec2(-res.xy)*cell.xy,0,1) );
         mres = mapsize_t(res*2);
         prepareCL();
 
-        super( null, SS_WorldMap );
+        super( null, SS_WorldMap_M );
 
-        warn_if_empty = false;
+        writeln( matrix );
     }
 
     void setPoints( in vec3 from, in vec3[] ppt )
     {
-        pnts.setData( [from] ~ ppt );
+        foreach( pnt; ppt )
+            pnts_data ~= PntData( from, 0.0f, pnt, 0.0f );
+    }
 
-        auto transform = mapmtr.inv * matrix.inv;
+    void process()
+    {
+        if( pnts_data.length == 0 ) return;
+
+        pnts.setData( pnts_data );
+        pnts_data.length = 0;
+
+        auto transform = matrix.inv;
 
         glFlush();
         glFinish();
 
-        data.acquireFromGL();
-        pnts.acquireFromGL();
+        cl_data.acquireFromGL();
+        cl_pnts.acquireFromGL();
 
-        update.setArgs( data.clmem, to!(uint[4])( mres.data ~ 0 ),
-                        pnts.clmem, cast(uint)pnts.elementCount,
+        update.setArgs( cl_data.mem, to!(uint[4])( mres.data ~ 0 ),
+                        cl_pnts.mem, cast(uint)pnts.elementCount,
                         cast(float[16])transform.asArray[0..16]
                        );
-        update.exec( cmdqueue, 1, [0], [32], [16] );
+        update.exec( cmdqueue, 1, [0], [1024], [16] );
 
-        pnts.releaseToGL();
-        data.releaseToGL();
+        cl_pnts.releaseToGL();
+        cl_data.releaseToGL();
 
         cmdqueue.flush();
     }
@@ -93,6 +98,7 @@ public:
         shader.setUniform!int( "size_y", cast(int)mres.h );
         shader.setUniform!float( "psize", 0.03 );
 
+        glEnable(GL_PROGRAM_POINT_SIZE);
         drawArrays( DrawMode.POINTS );
     }
 
@@ -154,69 +160,70 @@ protected:
     {
         auto cnt = mres.w * mres.h * mres.d;
 
-        data = registerChildEMM( new GLCLBuffer( new int[](cnt) ) );
+        data = createArrayBuffer();
         auto loc = shader.getAttribLocation( "data" );
         setAttribPointer( data, loc, 1, GLType.INT );
+        data.setData( new int[](cnt) );
 
-        pnts = registerChildEMM( new GLCLBuffer( new vec3[](1) ) );
+        pnts = registerChildEMM( new GLBuffer );
+        pnts.setData( [vec3.init] );
+
+        cl_data = new CLMem( data );
+        cl_pnts = new CLMem( pnts );
     }
 }
 
-enum CLSource = 
-`
-inline float3 mlt( const float16 m, float3 v )
+class CLWorldMap_M : BaseDrawObject, WorldMap
 {
-    return (float3)( 
-    m.s0 * v.x + m.s1 * v.y + m.s2 * v.z + m.s3,
-    m.s4 * v.x + m.s5 * v.y + m.s6 * v.z + m.s7,
-    m.s8 * v.x + m.s9 * v.y + m.sa * v.z + m.sA );
-}
+protected:
+    GLBuffer data;
 
-inline bool inRegionI( const uint3 size, const uint3 pnt )
-{
-    return pnt.x >= 0 && pnt.x < size.x &&
-           pnt.y >= 0 && pnt.y < size.y &&
-           pnt.z >= 0 && pnt.z < size.z;
-}
+    mat4 mapmtr;
+    mapsize_t mres;
 
-inline bool inRegionF( const uint3 size, const float3 pnt )
-{
-    return pnt.x >= 0 && pnt.x < size.x &&
-           pnt.y >= 0 && pnt.y < size.y &&
-           pnt.z >= 0 && pnt.z < size.z;
-}
+public:
 
-inline size_t index( const uint3 size, const uint3 pnt )
-{ return pnt.x + pnt.y * size.x + pnt.z * size.x * size.y; }
-
-kernel void update( global uint* map, const uint4 esize,
-                    global float3* pnts, const uint count,
-                    const float16 mtr )
-{
-    int i = get_global_id(0);
-    int sz = get_global_size(0);
-
-    uint3 size = (uint3)(esize.xyz);
-
-    float3 mfrom = mlt( mtr, pnts[0] );
-    for( ; i < count+1; i+=sz )
+    this( ivec3 res, vec3 cell )
     {
-        float3 p = mlt( mtr, pnts[i] );
-        float3 vv = p - mfrom;
+        mapmtr = mat4.diag( cell, 1 ).setCol(3, vec4(-res.xy,0,1) );
+        mres = mapsize_t(res*2);
 
-        uint3 crd = (uint3)( p.x, p.y, p.z );
-        if( inRegionI( size, crd ) )
-        {
-            float3 nvv = normalize(vv) * 0.5;
-            for( int j = 0; j < fast_length(vv) * 2; j++ )
-            {
-                float3 v = mfrom + nvv * i;
-                uint3 vcrd = (uint3)( v.x, v.y, v.z );
-                if( inRegionI( size, vcrd ) )
-                    map[index(size,vcrd)] = 1;
-            }
-            map[index(size,crd)] = 2;
-        }
+        super( null, SS_WorldMap_M );
+
+        writeln( matrix );
+    }
+
+    void setPoints( in vec3 from, in vec3[] ppt )
+    {
+    }
+
+    mapsize_t size() const { return mres; }
+
+    override void draw( Camera cam )
+    {
+        shader.setUniformMat( "prj", cam(this) );
+        shader.setUniform!int( "size_x", cast(int)mres.w );
+        shader.setUniform!int( "size_y", cast(int)mres.h );
+
+        glPointSize(2);
+        drawArrays( DrawMode.POINTS );
+    }
+
+    override @property mat4 matrix() const
+    { return super.matrix * mapmtr; }
+
+protected:
+
+    override void prepareBuffers()
+    {
+        auto cnt = mres.w * mres.h * mres.d;
+
+        data = createArrayBuffer();
+        auto loc = shader.getAttribLocation( "data" );
+        setAttribPointer( data, loc, 1, GLType.INT );
+        auto buf = new int[](cnt);
+        foreach( i, ref v; buf )
+            v = cast(int)i;
+        data.setData( buf );
     }
 }
-`;

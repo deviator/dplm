@@ -81,8 +81,8 @@ void main(void)
 
     gl_Position = vec4( pos, 1.0 );
 
-    val = float(data>1);
-    prop = float(data>0);
+    val = float( data > 1 );
+    prop = float( data > 0 );
     v_color = vec4( val, 0, 1-val, 0.1 + prop * 0.45 + val * 0.45 );
 }`,
 `#version 330
@@ -137,4 +137,36 @@ void main(void)
 in vec4 g_color;
 out vec4 out_color;
 void main(void) { out_color = g_color; }`
+);
+
+enum SS_WorldMap_M = ShaderSource(
+`#version 330
+in int data;
+
+out vec4 v_color;
+
+uniform int size_x;
+uniform int size_y;
+uniform mat4 prj;
+
+void main(void)
+{
+    vec3 pos;
+
+    pos.z = int( gl_VertexID / (size_x * size_y) ) + 0.5;
+    int k = gl_VertexID % ( size_x * size_y );
+    pos.y = int( k / size_x ) + 0.5;
+    pos.x = int( k % size_x ) + 0.5;
+
+    gl_Position = prj * vec4( pos, 1.0 );
+
+    float val = float( data > 1 );
+    float prop = float( data > 0 );
+    v_color = vec4( val, 0, 1-val, 0.1 + prop * 0.45 + val * 0.45 );
+    gl_PointSize = 0.5 + val + prop;
+}`,
+`#version 330
+in vec4 v_color;
+out vec4 out_color;
+void main(void) { out_color = v_color; }`
 );

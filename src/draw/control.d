@@ -47,7 +47,7 @@ public:
     {
         cam = c;
 
-        worldmap = new CLWorldMap( ivec3(100,100,25), vec3(2) );
+        worldmap = new CLWorldMap( ivec3(100,100,25), vec3(1) );
 
         mdl = new Model( worldmap );
 
@@ -78,6 +78,7 @@ public:
                     u.addSnapshot( buf_depth );
                 }
             mdl.step( tm.cycle() );
+            worldmap.process();
         }
     }
 

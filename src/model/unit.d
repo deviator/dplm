@@ -209,7 +209,8 @@ protected:
 
     void updateMap()
     {
-        wmap.setPoints( pos, ldpoints );
+        if( ldpoints.length )
+            wmap.setPoints( pos, ldpoints );
     }
 
     vec3 project( in mat4 m, in vec3 v )
