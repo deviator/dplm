@@ -47,13 +47,13 @@ public:
     {
         cam = c;
 
-        worldmap = new CLWorldMap( ivec3(100,100,25), vec3(1) );
+        worldmap = new CLWorldMap( ivec3(200,200,50), vec3(1) );
 
         mdl = new Model( worldmap );
 
-        mdl.appendUnits( 20 );
+        mdl.appendUnits( 10 );
 
-        world = new World( vec2(100,100), 50 );
+        world = new World( vec2(200,200), 50 );
         render = new Render;
         draw_unit = new DrawUnit(null);
 
@@ -140,7 +140,7 @@ public:
                     break;
 
                 case ev.Scan.G:
-                    world.regen( vec2(400,400), 200 );
+                    world.regen( vec2(200,200), 100 );
                     break;
 
                 case ev.Scan.NUMBER_1:

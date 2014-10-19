@@ -27,7 +27,7 @@ inline bool inRegionF( const uint3 size, const float3 pnt )
 inline size_t index( const uint3 size, const uint3 pnt )
 { return pnt.x + pnt.y * size.x + pnt.z * size.x * size.y; }
 
-kernel void update( global uint* map, const uint4 esize,
+kernel void update( global float* map, const uint4 esize,
                     global float8* pnts, const uint count,
                     const float16 mtr )
 {
@@ -38,23 +38,23 @@ kernel void update( global uint* map, const uint4 esize,
 
     for( ; i < count; i+=sz )
     {
-        float3 mfrom = mlt( mtr, pnts[i].s012 );
-        float3 p = mlt( mtr, pnts[i].s456 );
-        float3 vv = p - mfrom;
+        float3 a = mlt( mtr, pnts[i].s012 );
+        float3 b = mlt( mtr, pnts[i].s456 );
 
-        uint3 crd = (uint3)( p.x, p.y, p.z );
-        if( inRegionI( size, crd ) )
+        float3 dir = b - a;
+
+        float3 fstep = normalize(dir);
+
+        for( float j = 0; j < fast_length(dir); j+=0.5 )
         {
-            float3 nvv = normalize(vv) * 0.5;
-            for( int j = 0; j < fast_length(vv) * 2; j++ )
-            {
-                float3 v = mfrom + nvv * i;
-                uint3 vcrd = (uint3)( v.x, v.y, v.z );
-                if( inRegionI( size, vcrd ) )
-                    map[index(size,vcrd)] = 1;
-            }
-            map[index(size,crd)] = 2;
+            float3 v = a + fstep * j;
+
+            if( inRegionF( size, v ) )
+                map[index( size, (uint3)( v.x, v.y, v.z ) )] = 0;
         }
+
+        if( inRegionF( size, b ) && pnts[i].s7 > 0 )
+            map[index( size, (uint3)( b.x, b.y, b.z ) )] = 1;
     }
 }
 `;

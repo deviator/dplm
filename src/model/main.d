@@ -80,7 +80,7 @@ protected:
                      vec3(0),
                      vec3(4) ];
 
-            cam.fov = 90;
+            cam.fov = 60;
             cam.min = 1;
             cam.max = 150;
             cam.size = ivec2(32,32);

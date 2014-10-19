@@ -65,7 +65,7 @@ protected:
     vec3 look_pnt;
 
     vec3[] dangers;
-    vec3[] ldpoints;
+    vec4[] ldpoints;
 
     APID!vec3 pos_APID;
 
@@ -151,7 +151,7 @@ public:
 
     void appendDanger( in vec3 d ) { dangers ~= d; }
 
-    @property vec3[] lastSnapshot() { return ldpoints; }
+    @property vec4[] lastSnapshot() { return ldpoints; }
 
     void addSnapshot( in Image!2 img )
     {
@@ -176,7 +176,8 @@ protected:
         auto ih = img.size.h;
         auto iw = img.size.w;
 
-        ldpoints.length = 0;
+        ldpoints.length = ih*iw;
+
         auto pr_inv = cam.projection.matrix.inv;
         auto tr_inv = matrix * cam.transform.matrix;
 
@@ -187,20 +188,23 @@ protected:
             {
                 auto val = img.pixel!float(ix,iy);
 
-                if( val > 1-1e-6 || val < 1e-6 ) continue;
-
                 auto fx = (ix+0.5f) / iw * 2 - 1;
                 auto fy = (iy+0.5f) / ih * 2 - 1;
 
                 auto b = project( pr_inv, vec3(fx,fy,val) );
 
+                float fp = 1;
                 b *= getCorrect( b.z );
-                if( abs(b.z) > mrd ) continue;
+                if( abs(b.z) > mrd )
+                {
+                    fp = 0;
+                    b *= mrd / abs(b.z);
+                }
 
                 b = project( tr_inv, b );
 
                 auto p = b;
-                ldpoints ~= p;
+                ldpoints ~= vec4( p, fp );
             }
     }
 
@@ -209,8 +213,7 @@ protected:
 
     void updateMap()
     {
-        if( ldpoints.length )
-            wmap.setPoints( pos, ldpoints );
+        wmap.setPoints( pos, ldpoints );
     }
 
     vec3 project( in mat4 m, in vec3 v )

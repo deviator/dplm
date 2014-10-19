@@ -59,6 +59,25 @@ out vec4 out_color;
 void main(void) { out_color = color; }`
 );
 
+enum SS_DepthPoint = ShaderSource(
+`#version 330
+in vec4 data;
+uniform mat4 prj;
+out float fp;
+void main(void)
+{
+    gl_Position = prj * vec4( data.xyz, 1.0 );
+    fp = (data.w > 0.5) ? 1.0f : 0.0f;
+}`,
+
+`#version 330
+in float fp;
+uniform vec4 color;
+out vec4 out_color;
+void main(void)
+{ out_color = color * vec4(1,1,1, 0.2+0.8*fp ); }`
+);
+
 enum SS_WorldMap = ShaderSource(
 `#version 330
 in int data;
@@ -141,7 +160,7 @@ void main(void) { out_color = g_color; }`
 
 enum SS_WorldMap_M = ShaderSource(
 `#version 330
-in int data;
+in float data;
 
 out vec4 v_color;
 
@@ -160,10 +179,28 @@ void main(void)
 
     gl_Position = prj * vec4( pos, 1.0 );
 
-    float val = float( data > 1 );
-    float prop = float( data > 0 );
-    v_color = vec4( val, 0, 1-val, 0.1 + prop * 0.45 + val * 0.45 );
-    gl_PointSize = 0.5 + val + prop;
+    if( data == data )
+    {
+        // has info
+        if( data > 0 )
+        {
+            // has object
+            v_color = vec4(1,0,0,1);
+            gl_PointSize = 4;
+        }
+        else
+        {
+            // no object
+            v_color = vec4(0);
+            gl_PointSize = 0;
+        }
+    }
+    else
+    {
+        // no info
+        v_color = vec4( 1, 1, 0, 0.2 );
+        gl_PointSize = 1;
+    }
 }`,
 `#version 330
 in vec4 v_color;

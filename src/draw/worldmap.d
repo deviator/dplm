@@ -33,7 +33,7 @@ protected:
     CLMem cl_data, cl_pnts;
 
     alias Vector!(8,float) PntData;
-    PntData[] pnts_data;
+    PntData[] pnts_tmp_data;
 
     mat4 mapmtr;
     mapsize_t mres;
@@ -48,26 +48,24 @@ public:
     this( ivec3 res, vec3 cell )
     {
         mapmtr = mat4.diag( cell, 1 ).setCol(3, vec4(vec2(-res.xy)*cell.xy,0,1) );
-        mres = mapsize_t(res*2);
+        mres = mapsize_t(res.xy*2,res.z);
         prepareCL();
 
         super( null, SS_WorldMap_M );
-
-        writeln( matrix );
     }
 
-    void setPoints( in vec3 from, in vec3[] ppt )
+    void setPoints( in vec3 from, in vec4[] ppt )
     {
         foreach( pnt; ppt )
-            pnts_data ~= PntData( from, 0.0f, pnt, 0.0f );
+            pnts_tmp_data ~= PntData( from, 0.0f, pnt );
     }
 
     void process()
     {
-        if( pnts_data.length == 0 ) return;
+        if( pnts_tmp_data.length == 0 ) return;
 
-        pnts.setData( pnts_data );
-        pnts_data.length = 0;
+        pnts.setData( pnts_tmp_data );
+        pnts_tmp_data.length = 0;
 
         auto transform = matrix.inv;
 
@@ -81,7 +79,7 @@ public:
                         cl_pnts.mem, cast(uint)pnts.elementCount,
                         cast(float[16])transform.asArray[0..16]
                        );
-        update.exec( cmdqueue, 1, [0], [1024], [16] );
+        update.exec( cmdqueue, 1, [0], [1024], [32] );
 
         cl_pnts.releaseToGL();
         cl_data.releaseToGL();
@@ -162,68 +160,13 @@ protected:
 
         data = createArrayBuffer();
         auto loc = shader.getAttribLocation( "data" );
-        setAttribPointer( data, loc, 1, GLType.INT );
-        data.setData( new int[](cnt) );
+        setAttribPointer( data, loc, 1, GLType.FLOAT );
+        data.setData( new float[](cnt) );
 
         pnts = registerChildEMM( new GLBuffer );
         pnts.setData( [vec3.init] );
 
         cl_data = new CLMem( data );
         cl_pnts = new CLMem( pnts );
-    }
-}
-
-class CLWorldMap_M : BaseDrawObject, WorldMap
-{
-protected:
-    GLBuffer data;
-
-    mat4 mapmtr;
-    mapsize_t mres;
-
-public:
-
-    this( ivec3 res, vec3 cell )
-    {
-        mapmtr = mat4.diag( cell, 1 ).setCol(3, vec4(-res.xy,0,1) );
-        mres = mapsize_t(res*2);
-
-        super( null, SS_WorldMap_M );
-
-        writeln( matrix );
-    }
-
-    void setPoints( in vec3 from, in vec3[] ppt )
-    {
-    }
-
-    mapsize_t size() const { return mres; }
-
-    override void draw( Camera cam )
-    {
-        shader.setUniformMat( "prj", cam(this) );
-        shader.setUniform!int( "size_x", cast(int)mres.w );
-        shader.setUniform!int( "size_y", cast(int)mres.h );
-
-        glPointSize(2);
-        drawArrays( DrawMode.POINTS );
-    }
-
-    override @property mat4 matrix() const
-    { return super.matrix * mapmtr; }
-
-protected:
-
-    override void prepareBuffers()
-    {
-        auto cnt = mres.w * mres.h * mres.d;
-
-        data = createArrayBuffer();
-        auto loc = shader.getAttribLocation( "data" );
-        setAttribPointer( data, loc, 1, GLType.INT );
-        auto buf = new int[](cnt);
-        foreach( i, ref v; buf )
-            v = cast(int)i;
-        data.setData( buf );
     }
 }
