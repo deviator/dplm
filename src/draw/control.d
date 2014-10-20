@@ -53,7 +53,7 @@ public:
 
         mdl = new Model( worldmap );
 
-        mdl.appendUnits( 1 );
+        mdl.appendUnits( 10 );
 
         world = new World( vec2(200,200), 50 );
         render = new Render;

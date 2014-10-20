@@ -15,5 +15,5 @@ interface WorldMap : Node
     final vec3 cellSize() const
     { return (matrix * vec4(1,1,1,0)).xyz; }
 
-    vec3[][] getFillPoints( in vec3[] pos, float dst );
+    vec4[] getFillPoints( in vec3 pos, float dst );
 }

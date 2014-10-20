@@ -61,10 +61,13 @@ protected:
     float snapshot_timer = 0;
 
     vec3 trg_pos;
+
+    vec3 local_trg_pos;
+
     vec3 last_snapshot_pos;
     vec3 look_pnt;
 
-    vec3[] dangers;
+    fSeg[] dangers;
     vec4[] ldpoints;
 
     APID!vec3 pos_APID;
@@ -110,10 +113,12 @@ public:
         void target( in vec3 tp )
         {
             trg_pos = tp;
+            local_trg_pos = tp;
             ready_to_snapshot = true;
         }
 
         vec3 target() const { return trg_pos; }
+        vec3 localTarget() const { return local_trg_pos; }
 
         void lookPnt( in vec3 lp ) { look_pnt = lp; }
         vec3 lookPnt() const { return look_pnt; }
@@ -126,7 +131,7 @@ public:
 
         bool nearTarget() const
         {
-            return (target - pos).len2 < pow( params.ready.dst, 2 ) &&
+            return (localTarget - pos).len2 < pow( params.ready.dst, 2 ) &&
                 vel.len2 < pow( params.ready.vel, 2 );
         }
 
@@ -149,7 +154,7 @@ public:
         timer( dt );
     }
 
-    void appendDanger( in vec3[] d... ) { dangers ~= d; }
+    void appendDanger( in fSeg[] d... ) { dangers ~= d; }
 
     @property vec4[] lastSnapshot() { return ldpoints; }
 
@@ -195,11 +200,15 @@ protected:
 
                 float fp = val < 1-1e-6 ? 1.0f : 0.0f;
                 b *= getCorrect( b.z );
-                //if( abs(b.z) > mrd )
-                //{
-                //    fp = 0;
-                //    b *= mrd / abs(b.z);
-                //}
+
+                version(clipbycamres)
+                {
+                    if( abs(b.z) > mrd )
+                    {
+                        fp = 0;
+                        b *= mrd / abs(b.z);
+                    }
+                }
 
                 b = project( tr_inv, b );
 
@@ -211,16 +220,15 @@ protected:
     @property float minCellSize() const
     { return reduce!min(wmap.cellSize.data.dup); }
 
-    void updateMap()
-    { wmap.setPoints( pos, ldpoints ); }
+    void updateMap() { wmap.setPoints( pos, ldpoints ); }
 
-    vec3 project( in mat4 m, in vec3 v )
+    static vec3 project( in mat4 m, in vec3 v )
     {
-        auto buf = m * vec4(v,1.0f);
+        auto buf = m * vec4( v, 1.0f );
         return buf.xyz / buf.w;
     }
 
-    float getCorrect( float val_z )
+    float getCorrect( float val_z ) const
     {
         auto p = abs( val_z / cam.far );
         return 1 - getDepthRelativeError( p ) / p;
@@ -239,12 +247,12 @@ protected:
         return ret;
     }
 
-    vec3 drag( in vec3 v, float rho )
+    vec3 drag( in vec3 v, float rho ) const
     { return -v * v.len * params.CxS * rho / 2.0f; }
 
     vec3 controlForce( float dt )
     {
-        auto ff = pos_APID( target - pos, dt );
+        auto ff = pos_APID( localTarget - pos, dt );
         auto res = processDanger( ff );
 
         return limited( res, params.flim.max,
@@ -259,36 +267,32 @@ protected:
         vec3 corr;
         foreach( d; dangers )
         {
-            auto a = crs.altitude(d);
-            if( a.dir.len < 7 )
-            {
-                auto dst = pos - d;
-                auto R2 = (dst * 0.01).len2;
+            auto dst = pos - d.pnt;
+            corr += dst.e / ( dst.len2 + 0.1 );
 
-                corr += dst.e * vel.len2 / ( R2 + 0.1 );
+            if( d.dir.len2 > 0 )
+            {
+                auto vdst = crs.altitude(d);
+                auto pp = vdst.pnt - pos;
+
+                corr += -vdst.dir.e * vel.len / ( pp.len2 + 0.1 );
             }
         }
+        corr *= 400 / dangers.length;
         dangers.length = 0;
 
-        if( corr.len == 0 ) return ff;
-        else if( dot(ff.e, corr.e) > 0 ) return ff + corr;
-        else return corr;
+        return ff + corr;
     }
 
-    void timer( float dt )
-    {
-        snapshot_timer += dt;
-    }
+    void timer( float dt ) { snapshot_timer += dt; }
 
     void updateCamera()
-    {
-        cam.target = (matrix.inv * vec4(lookTarget,1)).xyz;
-    }
+    { cam.target = (matrix.inv * vec4(lookTarget,1)).xyz; }
 
     @property vec3 lookTarget() const
     {
-        if( (pos - target).len2 < pow(params.min_move,2) )
+        if( (pos - localTarget).len2 < pow(params.min_move,2) )
             return look_pnt;
-        else return target;
+        else return localTarget;
     }
 }

@@ -16,7 +16,7 @@ protected:
     Unit[] uarr;
     float time;
 
-    float danger_dist = 20;
+    float danger_dist = 10;
     vec2 mapsize;
 
     WorldMap wmap;
@@ -92,7 +92,6 @@ protected:
     void logic( float dt )
     {
         processDangerUnits();
-        processNearestFillPoints();
     }
 
     void processDangerUnits()
@@ -106,22 +105,10 @@ protected:
                 auto b = units[j];
                 if( (a.pos - b.pos).len2 < danger_dist * danger_dist )
                 {
-                    a.appendDanger( b.pos );
-                    b.appendDanger( a.pos );
+                    a.appendDanger( fSeg( b.pos, b.vel ) );
+                    b.appendDanger( fSeg( a.pos, a.vel ) );
                 }
             }
-    }
-
-    void processNearestFillPoints()
-    {
-        import std.algorithm;
-        import std.array;
-        import std.range;
-
-        auto dpnts = wmap.getFillPoints( array(map!(a=>a.pos)(units)), danger_dist );
-
-        foreach( p; zip(units,dpnts) )
-            p[0].appendDanger( p[1] );
     }
 
     Unit createDefaultUnit()

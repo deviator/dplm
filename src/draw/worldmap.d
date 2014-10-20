@@ -91,56 +91,45 @@ public:
             pnts_tmp_data ~= PntData( from, 0.0f, pnt );
     }
 
-    vec3[][] getFillPoints( in vec3 pos[], float dst )
+    vec4[] getFillPoints( in vec3 pos, float dst )
     {
-        vec3[][] ret;
-
         auto m = matrix.inv;
 
-        foreach( p; pos )
-        {
-            auto vol = getRegion( m, p, dst );
-            auto count = vol.size.x * vol.size.y * vol.size.z;
+        auto vol = getRegion( m, pos, dst );
+        auto count = vol.size.x * vol.size.y * vol.size.z;
 
-            if( count == 0 )
-            {
-                ret ~= [];
-                continue;
-            }
+        if( count == 0 ) return [];
 
-            uint[8] volume = [
-                cast(uint)vol.pos.x,
-                cast(uint)vol.pos.y,
-                cast(uint)vol.pos.z,
-                0,
-                cast(uint)vol.size.x,
-                cast(uint)vol.size.y,
-                cast(uint)vol.size.z,
-                0
-            ];
+        uint[8] volume = [
+            cast(uint)vol.pos.x,
+            cast(uint)vol.pos.y,
+            cast(uint)vol.pos.z,
+            0,
+            cast(uint)vol.size.x,
+            cast(uint)vol.size.y,
+            cast(uint)vol.size.z,
+            0
+        ];
 
-            near.setData( new vec4[](count) );
+        near.setData( new vec4[](count) );
 
-            stopGL();
-            acquireFromGL( data, near );
+        stopGL();
+        acquireFromGL( data, near );
 
-            nearfind.setArgs( data.mem, to!(uint[4])( mres.data ~ 0 ),
-                            cast(uint)count, volume, near.mem );
+        nearfind.setArgs( data.mem, to!(uint[4])( mres.data ~ 0 ),
+                        cast(uint)count, volume, near.mem );
 
-            nearfind.exec( cmdqueue, 1, [0], [32], [8] );
+        nearfind.exec( cmdqueue, 1, [0], [32], [8] );
 
-            releaseToGL( data, near );
-            cmdqueue.flush();
+        releaseToGL( data, near );
+        cmdqueue.flush();
 
-            auto nearbuf = near.getData!vec4;
+        auto nearbuf = near.getData!vec4;
 
-            vec3[] rbuf;
-            foreach( n; nearbuf )
-                if( n.w == 1 )
-                    rbuf ~= (matrix * n).xyz;
+        vec4[] ret;
+        foreach( n; nearbuf )
+            ret ~= vec4( (matrix * vec4(n.xyz,1)).xyz, n.w );
 
-            ret ~= rbuf;
-        }
         return ret;
     }
 
