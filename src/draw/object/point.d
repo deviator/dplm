@@ -32,12 +32,13 @@ public:
 
     void reset() { pnt_data.length = 0; }
 
+    void size( float s ) { glPointSize(s); }
+
     override void draw( Camera cam )
     {
         shader.setUniformMat( "prj", cam(this) );
         shader.setUniformVec( "color", clr );
 
-        glPointSize(2);
         if( pnt_data.length )
             drawArrays( DrawMode.POINTS );
     }

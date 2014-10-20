@@ -66,8 +66,9 @@ protected:
 
         with(uparams)
         {
-            flim.min = vec3(-glim,0);
-            flim.max = vec3(glim,60);
+            gflim = 20;
+            vfmin = -20;
+            vfmax = 60;
 
             CxS = 0.1;
             mass = 2;
@@ -76,10 +77,7 @@ protected:
             ready.vel = 0.01;
             min_move = 0.2;
 
-            apid = [ vec3(0,0,9.81*2),
-                     vec3(3),
-                     vec3(0),
-                     vec3(4) ];
+            pid = [ vec3(3), vec3(0), vec3(3) ];
 
             cam.fov = 60;
             cam.min = 1;

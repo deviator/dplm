@@ -136,18 +136,13 @@ public:
     vec3 nearestVolume( vec3 pos )
     {
         auto mpos = ( matrix.inv * vec4( pos, 1 ) ).xyz;
-        if( mpos.x >= 0 && mpos.x < mres.x &&
-            mpos.y >= 0 && mpos.y < mres.y &&
-            mpos.z >= 0 && mpos.z < mres.z ) return vec3(0);
-
-        vec3 r = pos;
-        if( mpos.x < 0 ) r.x = -mpos.x;
-        if( mpos.y < 0 ) r.y = -mpos.y;
-        if( mpos.z < 0 ) r.z = -mpos.z;
-        if( mpos.x >= mres.x ) r.x = mres.x - mpos.x;
-        if( mpos.y >= mres.y ) r.y = mres.y - mpos.y;
-        if( mpos.z >= mres.z ) r.z = mres.z - mpos.z;
-        return (matrix * vec4(r,1)).xyz;
+        foreach( i; 0 .. 3 )
+        {
+            if( mpos[i] < 0 ) mpos[i] = -mpos[i];
+            else if( mpos[i] >= mres[i] ) mpos[i] = mres[i] - mpos[i];
+            else mpos[i] = 0;
+        }
+        return (matrix * vec4(mpos,0)).xyz;
     }
 
     protected auto getRegion( in mat4 m, in vec3 pos, float dst )

@@ -37,7 +37,7 @@ private:
     Image!2 buf_depth;
     vec3 buf_target;
 
-    bool watch_copter = false;
+    bool watch_copter = true;
 
     MCamera cam;
 
@@ -50,10 +50,11 @@ public:
         cam = c;
 
         worldmap = new CLWorldMap( ivec3(200,200,50), vec3(1) );
+        worldmap.needDraw = false;
 
         mdl = new Model( worldmap );
 
-        mdl.appendUnits( 10 );
+        mdl.appendUnits( 1 );
 
         world = new World( vec2(200,200), 50 );
         render = new Render;
@@ -105,11 +106,22 @@ public:
             draw_unit.setParent(u);
             draw_unit.draw( cam );
 
+            draw_unit.color = col4(1,0,1,0.5);
+            draw_unit.setCoordinate( u.localTarget, u.rot );
+            draw_unit.draw( cam );
+
             draw_unit.color = col4(0,1,1,0.5);
             draw_unit.setCoordinate( u.target, u.rot );
             draw_unit.draw( cam );
 
-            ddot.add( u.lastSnapshot );
+            ddot.color = col4(0,1,0,1);
+            ddot.set( u.lastSnapshot );
+            ddot.size(2);
+            ddot.draw( cam );
+
+            ddot.color = col4(1,0,0,1);
+            ddot.set( u.lastWall );
+            ddot.size(3);
             ddot.draw( cam );
         }
 

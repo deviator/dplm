@@ -25,7 +25,9 @@ struct PhVec
 
 struct UnitParams
 {
-    Tuple!( vec3, "min", vec3, "max" ) flim;
+    float gflim;
+    float vfmin;
+    float vfmax;
 
     float CxS;
     float mass;
@@ -33,7 +35,7 @@ struct UnitParams
     Tuple!( float, "dst", float, "vel" ) ready;
     float min_move;
 
-    vec3[4] apid;
+    vec3[3] pid;
 
     Tuple!(float,"fov",
            float,"min",
@@ -70,7 +72,7 @@ protected:
     fSeg[] dangers;
     vec4[] ldpoints;
 
-    APID!vec3 pos_APID;
+    PID!vec3 pos_PID;
 
     SimpleCamera cam;
 
@@ -87,8 +89,7 @@ public:
 
         trg_pos = initial.pos;
 
-        pos_APID = new APID!vec3( prms.apid[0], prms.apid[1],
-                                  prms.apid[2], prms.apid[3] );
+        pos_PID = new PID!vec3( prms.pid[0], prms.pid[1], prms.pid[2] );
 
         wmap = worldmap;
 
@@ -113,7 +114,6 @@ public:
         void target( in vec3 tp )
         {
             trg_pos = tp;
-            local_trg_pos = tp;
             ready_to_snapshot = true;
         }
 
@@ -157,6 +157,13 @@ public:
     void appendDanger( in fSeg[] d... ) { dangers ~= d; }
 
     @property vec4[] lastSnapshot() { return ldpoints; }
+
+    @property vec4[] lastWall()
+    {
+        vec4[] ret;
+        foreach( w; wall ) ret ~= vec4( w, 1 );
+        return ret;
+    }
 
     void addSnapshot( in Image!2 img )
     {
@@ -253,29 +260,36 @@ protected:
     vec3 controlForce( float dt )
     {
         updateLocalTarget();
-        auto ff = pos_APID( localTarget - pos, dt );
-        auto res = processDanger( ff );
-
-        return limited( res, params.flim.max,
-                             params.flim.min );
+        auto res = logicCorrect( pos_PID( localTarget - pos, dt ) );
+        return limitedForce( res + vec3(0,0,9.81*params.mass) );
     }
 
-    void updateLocalTarget()
+    vec3 limitedForce( vec3 ff )
     {
-        auto nv = wmap.nearestVolume(pos);
-        if( nv == vec3(0) )
-        {
-            local_trg_pos = trg_pos;
-        }
-        else
-        {
-            local_trg_pos = pos + nv;
-        }
+        if( ff.xy.len > params.gflim )
+            ff = vec3( ff.xy.e * params.gflim, ff.z );
+        if( ff.z > params.vfmax ) ff.z = params.vfmax;
+        if( ff.z < params.vfmin ) ff.z = params.vfmin;
+        return ff;
     }
 
-    vec3 processDanger( vec3 ff )
+    vec3 logicCorrect( vec3 trgf )
     {
-        if( dangers.length == 0 ) return ff;
+        
+        auto ff = limitedForce( trgf );
+        auto pd = limitedForce( processDanger() );
+        auto cc = vec3(0,0,0);
+        if( pos.z < 1 ) cc.z = params.vfmax;
+        auto res = ff + pd + cc;
+        writeln( res );
+        auto cr = processMap( res );
+        if( cr.len2 == 0 ) return res;
+        return cr.e * res.len;
+    }
+
+    vec3 processDanger()
+    {
+        if( dangers.length == 0 ) return vec3(0);
 
         auto crs = fSeg( pos, vel );
         vec3 corr;
@@ -292,11 +306,136 @@ protected:
                 corr += -vdst.dir.e * vel.len / ( pp.len2 + 0.1 );
             }
         }
-        corr *= 400 / dangers.length;
+        corr /= dangers.length;
         dangers.length = 0;
 
-        return ff + corr;
+        return corr;
     }
+
+    void updateLocalTarget()
+    {
+        auto nv = wmap.nearestVolume(pos);
+
+        // сначала двигаемся к карте
+        if( nv.len2 > 0.001 )
+        {
+            local_trg_pos = pos + nv;
+            return;
+        }
+
+        local_trg_pos = trg_pos;
+    }
+
+    vec3[] wall;
+
+    vec3 processMap( vec3 dir )
+    {
+        if( dir.len2 == 0 ) return dir;
+
+        float max_dst = 10;
+        float dang_rad = max_dst / 2;
+
+        auto trg = pos + dir.e * max_dst * max_dst;
+
+        updateWallAndCalcNear( trg, max_dst );
+
+        if( !wall.length ) return trg - pos;
+
+        auto wall_c = mean( wall );
+        float max_wall_dst = reduce!max( dang_rad, map!(a=>(wall_c-a).len)( wall ) );
+
+        //auto ntrg = calcSphericBypass( pos, trg, wall_c, max_wall_dst + dang_rad );
+        //return ntrg - pos;
+
+        return calcWallRepulsion( dir, dang_rad );
+    }
+
+    vec3 calcWallRepulsion( vec3 dir, float dist )
+    {
+        vec3 rp;
+        size_t k = 0;
+        foreach( w; wall )
+        {
+            auto dst = pos - w;
+            if( dst.len < dist )
+            {
+                rp += dst.e * ( dist - dst.len );
+                k++;
+            }
+        }
+        if( k == 0 ) return dir;
+        return rp / k;
+    }
+
+    vec3 updateWallAndCalcNear( vec3 trg, float max_dst )
+    {
+        float dang_dst = max_dst / 2;
+
+        auto mpts = ldpoints ~ wmap.getFillPoints( pos, max_dst );
+
+        trg = calcNear( mpts, trg, dang_dst );
+
+        wall.length = 0;
+        appendWall( mpts, trg, dang_dst );
+        appendWall( mpts, pos, dang_dst );
+
+        return trg;
+    }
+
+    vec3 calcNear( in vec4[] mpts, vec3 trg, float dist )
+    {
+        foreach( ep; mpts )
+        {
+            auto way = fSeg.fromPoints( pos, trg );
+
+            auto val = ep.w;
+            auto p = ep.xyz;
+
+            if( val > 0 || val is float.nan )
+            {
+                auto alt = way.altitude(p);
+                if( alt.dir.len < dist && (alt.pnt-pos).len <= way.dir.len )
+                    trg = alt.pnt;
+            }
+        }
+        return trg;
+    }
+
+    void appendWall( in vec4[] mpts, vec3 trg, float dist )
+    {
+        foreach( ep; mpts )
+        {
+            auto val = ep.w;
+            auto p = ep.xyz;
+
+            if( ( val > 0 || val is float.nan ) && (trg-p).len <= dist )
+                wall ~= p;
+        }
+    }
+
+    vec3 calcSphericBypass( vec3 from, vec3 to, vec3 center, float R )
+    {
+        auto way = fSeg.fromPoints( from, to );
+        auto rd = center - from;
+        auto A = rd.len;
+        auto rde = rd / A;
+
+        if( way.altitude(center).dir.len > R ) return to;
+        if( A < R ) return from - rde * (R - A);
+
+        auto rv = cross( rde, way.altitude(center).e ).e;
+        if( !rv ) rv = cross( rde, vec3(0,0,1) ).e;
+
+        auto up = cross( rv, rde ).e;
+
+        auto kx = -rde * R * R/A;
+        auto ky = up * R * sin( acos(R/A) );
+
+        return from + (center + kx + ky);
+    }
+
+    static auto mean( in vec3[] arr )
+    { return (reduce!((r,a)=>r+=a)(arr)) / arr.length; }
 
     void timer( float dt ) { snapshot_timer += dt; }
 
@@ -307,6 +446,6 @@ protected:
     {
         if( (pos - localTarget).len2 < pow(params.min_move,2) )
             return look_pnt;
-        else return localTarget;
+        else return (pos + vel + localTarget) * 0.5;
     }
 }
