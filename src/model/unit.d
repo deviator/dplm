@@ -149,7 +149,7 @@ public:
         timer( dt );
     }
 
-    void appendDanger( in vec3 d ) { dangers ~= d; }
+    void appendDanger( in vec3[] d... ) { dangers ~= d; }
 
     @property vec4[] lastSnapshot() { return ldpoints; }
 
@@ -244,28 +244,35 @@ protected:
 
     vec3 controlForce( float dt )
     {
-        vec3 res;
-        res += pos_APID( target - pos, dt );
-        res += processDanger() * vec3(800);
+        auto ff = pos_APID( target - pos, dt );
+        auto res = processDanger( ff );
 
         return limited( res, params.flim.max,
                              params.flim.min );
     }
 
-    vec3 processDanger()
+    vec3 processDanger( vec3 ff )
     {
-        if( dangers.length == 0 )
-            return vec3(0);
+        if( dangers.length == 0 ) return ff;
 
-        vec3 ret;
+        auto crs = fSeg( pos, vel );
+        vec3 corr;
         foreach( d; dangers )
         {
-            auto dst = pos - d;
-            ret += dst.e / ( dst.len2 + 0.1 );
+            auto a = crs.altitude(d);
+            if( a.dir.len < 7 )
+            {
+                auto dst = pos - d;
+                auto R2 = (dst * 0.01).len2;
+
+                corr += dst.e * vel.len2 / ( R2 + 0.1 );
+            }
         }
-        ret /= dangers.length;
         dangers.length = 0;
-        return ret;
+
+        if( corr.len == 0 ) return ff;
+        else if( dot(ff.e, corr.e) > 0 ) return ff + corr;
+        else return corr;
     }
 
     void timer( float dt )

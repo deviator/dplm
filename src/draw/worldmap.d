@@ -6,6 +6,8 @@ import std.conv;
 import des.cl;
 import des.cl.helpers;
 
+import des.il.region;
+
 public import draw.object.base;
 import model.worldmap;
 import draw.clsource;
@@ -14,9 +16,19 @@ class CLWorldMap : BaseDrawObject, WorldMap
 {
 protected:
 
-    class MainDataBuffer : GLArrayBuffer
+    interface CLBuffer
     {
-        CLGLMemory mem;
+        @property CLGLMemory mem();
+        @property CLCommandQueue cmd();
+        final void acquireFromGL() { mem.acquireFromGL( cmd ); }
+        final void releaseToGL() { mem.releaseToGL( cmd ); }
+    }
+
+    class MainDataBuffer : GLArrayBuffer, CLBuffer
+    {
+        CLGLMemory clmem;
+        @property CLGLMemory mem() { return clmem; }
+        @property CLCommandQueue cmd() { return cmdqueue; }
 
         this(T)( string name, uint cnt, GLType type, T[] data )
         {
@@ -25,33 +37,29 @@ protected:
             setAttribPointer( this, loc, cnt, type );
             setData( data );
 
-            mem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
+            clmem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
                                  CLMemory.Flags.READ_WRITE, this ) );
         }
-
-        void acquireFromGL() { mem.acquireFromGL( cmdqueue ); }
-        void releaseToGL() { mem.releaseToGL( cmdqueue ); }
     }
 
-    class SBuffer : GLBuffer
+    class SBuffer : GLBuffer, CLBuffer
     {
-        CLGLMemory mem;
+        CLGLMemory clmem;
+        @property CLGLMemory mem() { return clmem; }
+        @property CLCommandQueue cmd() { return cmdqueue; }
 
         this()
         {
             super( Target.ARRAY_BUFFER );
             setData( [0] );
-            mem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
+            clmem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
                                  CLMemory.Flags.READ_WRITE, this ) );
         }
-
-        void acquireFromGL() { mem.acquireFromGL( cmdqueue ); }
-        void releaseToGL() { mem.releaseToGL( cmdqueue ); }
     }
 
     MainDataBuffer data;
 
-    SBuffer pnts;
+    SBuffer pnts, near;
 
     alias Vector!(8,float) PntData;
     alias Vector!(8,uint) VolumeData;
@@ -83,50 +91,112 @@ public:
             pnts_tmp_data ~= PntData( from, 0.0f, pnt );
     }
 
-    vec3[] getNear( in vec3 pos[], float dst )
+    vec3[][] getFillPoints( in vec3 pos[], float dst )
     {
-        return [];
-        //auto volumes = getVolumes( pos, dst );
-        //auto count = getCount( volumes );
+        vec3[][] ret;
 
+        auto m = matrix.inv;
 
-        //auto tr = matrix.inv;
+        foreach( p; pos )
+        {
+            auto vol = getRegion( m, p, dst );
+            auto count = vol.size.x * vol.size.y * vol.size.z;
 
-        //size_t maxcount;
+            if( count == 0 )
+            {
+                ret ~= [];
+                continue;
+            }
 
-        //foreach( p; pos )
-        //{
-        //    auto pmin = tr * vec4( pos - vec3(dst), 1 )).xyz;
-        //    auto pmax = tr * vec4( pos + vec3(dst), 1 )).xyz;
-        //}
+            uint[8] volume = [
+                cast(uint)vol.pos.x,
+                cast(uint)vol.pos.y,
+                cast(uint)vol.pos.z,
+                0,
+                cast(uint)vol.size.x,
+                cast(uint)vol.size.y,
+                cast(uint)vol.size.z,
+                0
+            ];
+
+            near.setData( new vec4[](count) );
+
+            stopGL();
+            acquireFromGL( data, near );
+
+            nearfind.setArgs( data.mem, to!(uint[4])( mres.data ~ 0 ),
+                            cast(uint)count, volume, near.mem );
+
+            nearfind.exec( cmdqueue, 1, [0], [32], [8] );
+
+            releaseToGL( data, near );
+            cmdqueue.flush();
+
+            auto nearbuf = near.getData!vec4;
+
+            vec3[] rbuf;
+            foreach( n; nearbuf )
+                if( n.w == 1 )
+                    rbuf ~= (matrix * n).xyz;
+
+            ret ~= rbuf;
+        }
+        return ret;
+    }
+
+    protected auto getRegion( in mat4 m, in vec3 pos, float dst )
+    {
+        auto pmin = ivec3( (m * vec4( pos - vec3(dst), 1 ) ).xyz );
+        auto size = ivec3( (m * vec4( vec3(dst) * 2, 0 ) ).xyz );
+
+        auto dvol = iRegion3( ivec3(0), mres );
+        auto cvol = iRegion3( pmin, size );
+
+        return dvol.overlap( cvol );
     }
 
     void process()
     {
-        if( pnts_tmp_data.length == 0 ) return;
-
-        pnts.setData( pnts_tmp_data );
-        pnts_tmp_data.length = 0;
+        if( !loadTmp() ) return;
 
         auto transform = matrix.inv;
 
-        glFlush();
-        glFinish();
+        stopGL();
 
-        data.acquireFromGL();
-        pnts.acquireFromGL();
+        acquireFromGL( data, pnts );
 
-        update.setArgs( data.mem, to!(uint[4])( mres.data ~ 0 ),
+        update.setArgs( data.mem, uint4MapRes,
                         pnts.mem, cast(uint)pnts.elementCount,
                         cast(float[16])transform.asArray[0..16]
                        );
         update.exec( cmdqueue, 1, [0], [1024], [32] );
 
-        pnts.releaseToGL();
-        data.releaseToGL();
+        releaseToGL( data, pnts );
 
         cmdqueue.flush();
     }
+
+    @property uint[4] uint4MapRes() { return to!(uint[4])( mres.data ~ 0 ); }
+
+    protected bool loadTmp()
+    {
+        if( pnts_tmp_data.length == 0 ) return false;
+        pnts.setData( pnts_tmp_data );
+        pnts_tmp_data.length = 0;
+        return true;
+    }
+
+    protected void stopGL()
+    {
+        glFlush();
+        glFinish();
+    }
+
+    protected void acquireFromGL( CLBuffer[] list... )
+    { foreach( obj; list ) obj.acquireFromGL(); }
+
+    protected void releaseToGL( CLBuffer[] list... )
+    { foreach( obj; list ) obj.releaseToGL(); }
 
     mapsize_t size() const { return mres; }
 
@@ -166,6 +236,7 @@ protected:
         }
 
         update = registerCLRef( new CLKernel( program, "update" ) );
+        nearfind = registerCLRef( new CLKernel( program, "nearfind" ) );
     }
 
     CLReference[] clrefs;
@@ -203,5 +274,6 @@ protected:
                                                       new float[](cnt) ) );
 
         pnts = registerChildEMM( new SBuffer() );
+        near = registerChildEMM( new SBuffer() );
     }
 }

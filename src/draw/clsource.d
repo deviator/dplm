@@ -27,6 +27,16 @@ inline bool inRegionF( const uint3 size, const float3 pnt )
 inline size_t index( const uint3 size, const uint3 pnt )
 { return pnt.x + pnt.y * size.x + pnt.z * size.x * size.y; }
 
+inline uint3 coordinate( const uint3 size, size_t ind )
+{
+    uint3 ret;
+    ret.z = ind / (size.x * size.y);
+    int k = ind % ( size.x * size.y );
+    ret.y = k / size.x;
+    ret.x = k % size.x;
+    return ret;
+}
+
 kernel void update( global float* map, const uint4 esize,
                     global float8* pnts, const uint count,
                     const float16 mtr )
@@ -58,11 +68,24 @@ kernel void update( global float* map, const uint4 esize,
     }
 }
 
-//kernel void nearfind( global float* map, const uint4 esize,
-//                      global uint8* volume, const uint count,
-//                      global float4* near
-//                     )
-//{
-//
-//}
+kernel void nearfind( global float* map, const uint4 esize,
+                      const uint count, const uint8 volume, global float4* near )
+{
+    int i = get_global_id(0);
+    int sz = get_global_size(0);
+
+    uint3 msize = (uint3)(esize.xyz);
+
+    uint3 vpos = (uint3)(volume.s012);
+    uint3 vsize = (uint3)(volume.s456);
+    
+    for( ; i < count; i+=sz )
+    {
+        uint3 crd = vpos + coordinate( vsize, i );
+        if( inRegionI( msize, crd ) )
+            near[i] = (float4)( crd.x, crd.y, crd.z, map[index(msize,crd)] );
+        else
+            near[i] = (float4)(0);
+    }
+}
 `;

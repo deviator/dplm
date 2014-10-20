@@ -37,6 +37,8 @@ private:
     Image!2 buf_depth;
     vec3 buf_target;
 
+    bool watch_copter = false;
+
     MCamera cam;
 
     bool draw_world_in_view = true;
@@ -51,7 +53,7 @@ public:
 
         mdl = new Model( worldmap );
 
-        mdl.appendUnits( 10 );
+        mdl.appendUnits( 1 );
 
         world = new World( vec2(200,200), 50 );
         render = new Render;
@@ -65,7 +67,12 @@ public:
     void idle()
     {
         if( mdl.units.length )
+        {
             buf_target = mdl.units[$-1].target;
+
+            if( watch_copter )
+                cam.target = mdl.units[$-1].pos;
+        }
 
         if( model_proc )
         {
@@ -94,11 +101,11 @@ public:
             if( u.nearTarget )
                 draw_unit.color = col4(0,1,0,1);
             else
-                draw_unit.color = col4(1,0,0,1);
+                draw_unit.color = col4(0,0,1,1);
             draw_unit.setParent(u);
             draw_unit.draw( cam );
 
-            draw_unit.color = col4(0,0,1,0.5);
+            draw_unit.color = col4(0,1,1,0.5);
             draw_unit.setCoordinate( u.target, u.rot );
             draw_unit.draw( cam );
 
@@ -145,6 +152,10 @@ public:
 
                 case ev.Scan.NUMBER_1:
                     cam.target = buf_target;
+                    break;
+
+                case ev.Scan.NUMBER_2:
+                    watch_copter = !watch_copter;
                     break;
 
                 default: break;
