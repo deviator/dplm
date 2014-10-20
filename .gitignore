@@ -11,6 +11,8 @@
 *.toc
 *.log
 *.out
+*.nav
+*.snm
 .*.sw*
 
 bin
