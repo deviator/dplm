@@ -280,11 +280,11 @@ protected:
         auto pd = limitedForce( processDanger() );
         auto cc = vec3(0,0,0);
         if( pos.z < 1 ) cc.z = params.vfmax;
-        auto res = ff + pd + cc;
-        writeln( res );
-        auto cr = processMap( res );
-        if( cr.len2 == 0 ) return res;
-        return cr.e * res.len;
+        return ff + pd + cc;
+        //auto res = ff + pd + cc;
+        //auto cr = processMap( res );
+        //if( cr.len2 == 0 ) return res;
+        //return cr.e * res.len;
     }
 
     vec3 processDanger()
@@ -423,7 +423,7 @@ protected:
         if( way.altitude(center).dir.len > R ) return to;
         if( A < R ) return from - rde * (R - A);
 
-        auto rv = cross( rde, way.altitude(center).e ).e;
+        auto rv = cross( rde, -way.altitude(center).dir.e ).e;
         if( !rv ) rv = cross( rde, vec3(0,0,1) ).e;
 
         auto up = cross( rv, rde ).e;

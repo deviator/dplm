@@ -54,7 +54,7 @@ public:
 
         mdl = new Model( worldmap );
 
-        mdl.appendUnits( 1 );
+        mdl.appendUnits( 20 );
 
         world = new World( vec2(200,200), 50 );
         render = new Render;

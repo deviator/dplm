@@ -9,8 +9,8 @@
 \usepackage{geometry}
 \usepackage{hyperref}
 \geometry{top=2cm}
-\geometry{left=2cm}
-\geometry{right=1cm}
+\geometry{left=3cm}
+\geometry{right=2cm}
 \geometry{bottom=2cm}
 \usepackage{graphicx}
 \usepackage{epstopdf}
@@ -20,3 +20,16 @@
 
 \renewcommand{\vec}{\overline}
 \renewcommand{\phi}{\varphi}
+
+\newenvironment{mintemize}%
+{
+    \vspace{-0.5em}
+    \begin{itemize}
+        \setlength\itemsep{-0.2em}
+}
+{
+    \end{itemize}
+    \vspace{-0.5em}
+}
+
+\graphicspath{{pics/}}
