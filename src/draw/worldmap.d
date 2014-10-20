@@ -133,6 +133,23 @@ public:
         return ret;
     }
 
+    vec3 nearestVolume( vec3 pos )
+    {
+        auto mpos = ( matrix.inv * vec4( pos, 1 ) ).xyz;
+        if( mpos.x >= 0 && mpos.x < mres.x &&
+            mpos.y >= 0 && mpos.y < mres.y &&
+            mpos.z >= 0 && mpos.z < mres.z ) return vec3(0);
+
+        vec3 r = pos;
+        if( mpos.x < 0 ) r.x = -mpos.x;
+        if( mpos.y < 0 ) r.y = -mpos.y;
+        if( mpos.z < 0 ) r.z = -mpos.z;
+        if( mpos.x >= mres.x ) r.x = mres.x - mpos.x;
+        if( mpos.y >= mres.y ) r.y = mres.y - mpos.y;
+        if( mpos.z >= mres.z ) r.z = mres.z - mpos.z;
+        return (matrix * vec4(r,1)).xyz;
+    }
+
     protected auto getRegion( in mat4 m, in vec3 pos, float dst )
     {
         auto pmin = ivec3( (m * vec4( pos - vec3(dst), 1 ) ).xyz );

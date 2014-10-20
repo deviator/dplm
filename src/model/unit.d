@@ -252,11 +252,25 @@ protected:
 
     vec3 controlForce( float dt )
     {
+        updateLocalTarget();
         auto ff = pos_APID( localTarget - pos, dt );
         auto res = processDanger( ff );
 
         return limited( res, params.flim.max,
                              params.flim.min );
+    }
+
+    void updateLocalTarget()
+    {
+        auto nv = wmap.nearestVolume(pos);
+        if( nv == vec3(0) )
+        {
+            local_trg_pos = trg_pos;
+        }
+        else
+        {
+            local_trg_pos = pos + nv;
+        }
     }
 
     vec3 processDanger( vec3 ff )
