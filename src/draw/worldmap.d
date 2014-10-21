@@ -9,11 +9,10 @@ import des.il.region;
 
 public import draw.object.base;
 import model.worldmap;
-import draw.clsource;
 
 import des.util.helpers;
 
-enum CLSource = import( "draw/clsource.cl" );
+enum CLSource = import( "cl/main.cl" );
 
 class CLWorldMap : BaseDrawObject, WorldMap
 {

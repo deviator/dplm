@@ -260,7 +260,7 @@ protected:
     vec3 controlForce( float dt )
     {
         updateLocalTarget();
-        auto res = logicCorrect( pos_PID( wayPoint - pos, dt ) );
+        auto res = logicCorrect( pos_PID( limitedForce(wayPoint-pos), dt ) );
         return limitedForce( res + vec3(0,0,9.81*params.mass) );
     }
 
