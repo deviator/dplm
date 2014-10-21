@@ -72,6 +72,6 @@ float getDepthRelativeError( float v )
             TV(0.998025, 0.00196248),
             TV(1, 0)
         ];
-    return lineInterpolate( tbl, v, true );
+    return lineInterpolate( tbl, v, true ) / v;
 }
 

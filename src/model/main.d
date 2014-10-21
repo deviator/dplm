@@ -17,7 +17,6 @@ protected:
     float time;
 
     float danger_dist = 10;
-    vec2 mapsize;
 
     WorldMap wmap;
 

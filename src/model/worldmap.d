@@ -1,7 +1,5 @@
 module model.worldmap;
 
-import model.mapdata;
-
 import des.math.linear;
 
 interface WorldMap : Node

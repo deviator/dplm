@@ -7,6 +7,7 @@
     "sourcePaths": [ "DerelictCL/source", "descl/import", "derelict/import", "descore/import", "des/import", "src" ],
     "libs-posix": [ "dl" ],
     "lflags": [ "-L./derelict/lib/dmd" ],
+    "dflags-dmd": [ "-Jsrc" ],
     "libs":
     [
         "DerelictUtil",

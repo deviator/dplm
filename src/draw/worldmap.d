@@ -3,8 +3,7 @@ module draw.worldmap;
 import std.stdio;
 import std.conv;
 
-import des.cl;
-import des.cl.helpers;
+import des.cl.glsimple;
 
 import des.il.region;
 
@@ -12,23 +11,17 @@ public import draw.object.base;
 import model.worldmap;
 import draw.clsource;
 
+import des.util.helpers;
+
+enum CLSource = import( "draw/clsource.cl" );
+
 class CLWorldMap : BaseDrawObject, WorldMap
 {
 protected:
 
-    interface CLBuffer
+    class MainDataBuffer : GLArrayBuffer, CLMemoryBuffer
     {
-        @property CLGLMemory mem();
-        @property CLCommandQueue cmd();
-        final void acquireFromGL() { mem.acquireFromGL( cmd ); }
-        final void releaseToGL() { mem.releaseToGL( cmd ); }
-    }
-
-    class MainDataBuffer : GLArrayBuffer, CLBuffer
-    {
-        CLGLMemory clmem;
-        @property CLGLMemory mem() { return clmem; }
-        @property CLCommandQueue cmd() { return cmdqueue; }
+        mixin( getCLMemProperty );
 
         this(T)( string name, uint cnt, GLType type, T[] data )
         {
@@ -37,23 +30,20 @@ protected:
             setAttribPointer( this, loc, cnt, type );
             setData( data );
 
-            clmem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
-                                 CLMemory.Flags.READ_WRITE, this ) );
+            clInit();
         }
     }
 
-    class SBuffer : GLBuffer, CLBuffer
+    class SBuffer : GLBuffer, CLMemoryBuffer
     {
-        CLGLMemory clmem;
-        @property CLGLMemory mem() { return clmem; }
-        @property CLCommandQueue cmd() { return cmdqueue; }
+        mixin( getCLMemProperty );
 
         this()
         {
             super( Target.ARRAY_BUFFER );
             setData( [0] );
-            clmem = registerCLRef( CLGLMemory.createFromGLBuffer( ctx,
-                                 CLMemory.Flags.READ_WRITE, this ) );
+
+            clInit();
         }
     }
 
@@ -68,11 +58,8 @@ protected:
     mat4 mapmtr;
     mapsize_t mres;
 
-    CLGLContext ctx;
-    CLCommandQueue cmdqueue;
-
-    CLKernel update;
-    CLKernel nearfind;
+    SimpleCLKernel update;
+    SimpleCLKernel nearfind;
 
 public:
 
@@ -113,16 +100,14 @@ public:
 
         near.setData( new vec4[](count) );
 
-        stopGL();
-        acquireFromGL( data, near );
+        CLGL.acquireFromGL( data, near );
 
-        nearfind.setArgs( data.mem, to!(uint[4])( mres.data ~ 0 ),
-                        cast(uint)count, volume, near.mem );
+        nearfind.setArgs( data, uivec4( mres, 0 ),
+                        cast(uint)count, volume, near );
 
-        nearfind.exec( cmdqueue, 1, [0], [32], [8] );
+        nearfind.exec( 1, [0], [32], [8] );
 
-        releaseToGL( data, near );
-        cmdqueue.flush();
+        CLGL.releaseToGL();
 
         auto nearbuf = near.getData!vec4;
 
@@ -162,22 +147,15 @@ public:
 
         auto transform = matrix.inv;
 
-        stopGL();
+        CLGL.acquireFromGL( data, pnts );
 
-        acquireFromGL( data, pnts );
+        update.setArgs( data, uivec4(mres,0),
+                        pnts, cast(uint)pnts.elementCount,
+                        transform );
+        update.exec( 1, [0], [1024], [32] );
 
-        update.setArgs( data.mem, uint4MapRes,
-                        pnts.mem, cast(uint)pnts.elementCount,
-                        cast(float[16])transform.asArray[0..16]
-                       );
-        update.exec( cmdqueue, 1, [0], [1024], [32] );
-
-        releaseToGL( data, pnts );
-
-        cmdqueue.flush();
+        CLGL.releaseToGL();
     }
-
-    @property uint[4] uint4MapRes() { return to!(uint[4])( mres.data ~ 0 ); }
 
     protected bool loadTmp()
     {
@@ -186,18 +164,6 @@ public:
         pnts_tmp_data.length = 0;
         return true;
     }
-
-    protected void stopGL()
-    {
-        glFlush();
-        glFinish();
-    }
-
-    protected void acquireFromGL( CLBuffer[] list... )
-    { foreach( obj; list ) obj.acquireFromGL(); }
-
-    protected void releaseToGL( CLBuffer[] list... )
-    { foreach( obj; list ) obj.releaseToGL(); }
 
     mapsize_t size() const { return mres; }
 
@@ -219,51 +185,14 @@ protected:
 
     void prepareCL()
     {
-        auto platform = CLPlatform.getAll()[0];
-
-        auto devices = registerCLRef( CLDevice.getAll( platform ) );
-
-        ctx = registerCLRef( new CLGLContext( platform ) );
-        ctx.initializeFromType( CLDevice.Type.GPU );
-
-        cmdqueue = registerCLRef( new CLCommandQueue( ctx, devices[0] ) );
-        auto program = registerCLRef( CLProgram.createWithSource( ctx, CLSource ) );
-
-        try program.build( devices, [ CLBuildOption.fastRelaxedMath ] );
-        catch( CLException e )
-        {
-            stderr.writeln( program.buildInfo()[0] );
-            throw e;
-        }
-
-        update = registerCLRef( new CLKernel( program, "update" ) );
-        nearfind = registerCLRef( new CLKernel( program, "nearfind" ) );
-    }
-
-    CLReference[] clrefs;
-
-    auto registerCLRef(T)( T[] objs ) if( is( T : CLReference ) )
-    {
-        foreach( obj; objs )
-            clrefs ~= cast(CLReference)obj;
-        return objs;
-    }
-
-    auto registerCLRef(T)( T obj ) if( is( T : CLReference ) )
-    {
-        clrefs ~= cast(CLReference)obj;
-        return obj;
-    }
-
-    void destroyCLRefs()
-    {
-        foreach( obj; clrefs )
-            obj.release();
+        auto kernels = CLGL.build( CLSource, "update", "nearfind" );
+        update = kernels["update"];
+        nearfind = kernels["nearfind"];
     }
 
     override void selfDestroy()
     {
-        destroyCLRefs();
+        CLGL.systemDestroy();
         super.selfDestroy();
     }
 

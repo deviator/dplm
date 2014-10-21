@@ -48,7 +48,7 @@ struct UnitParams
 
     float maxResultDist( float cell ) const
     {
-        auto maxAngleResolution = (cam.fov / 180 * PI) / cam.size.y;
+        auto maxAngleResolution = (cam.fov / 180.0f * PI) / cam.size.y;
         return abs( cell / tan(maxAngleResolution) );
     }
 }
@@ -64,7 +64,7 @@ protected:
 
     vec3 trg_pos;
 
-    vec3 local_trg_pos;
+    vec3 way_point;
 
     vec3 last_snapshot_pos;
     vec3 look_pnt;
@@ -118,7 +118,7 @@ public:
         }
 
         vec3 target() const { return trg_pos; }
-        vec3 localTarget() const { return local_trg_pos; }
+        vec3 wayPoint() const { return way_point; }
 
         void lookPnt( in vec3 lp ) { look_pnt = lp; }
         vec3 lookPnt() const { return look_pnt; }
@@ -131,7 +131,7 @@ public:
 
         bool nearTarget() const
         {
-            return (localTarget - pos).len2 < pow( params.ready.dst, 2 ) &&
+            return (wayPoint - pos).len2 < pow( params.ready.dst, 2 ) &&
                 vel.len2 < pow( params.ready.vel, 2 );
         }
 
@@ -238,7 +238,7 @@ protected:
     float getCorrect( float val_z ) const
     {
         auto p = abs( val_z / cam.far );
-        return 1 - getDepthRelativeError( p ) / p;
+        return 1 - getDepthRelativeError(p);
     }
 
     PhVec rpart( float t, float dt )
@@ -260,7 +260,7 @@ protected:
     vec3 controlForce( float dt )
     {
         updateLocalTarget();
-        auto res = logicCorrect( pos_PID( localTarget - pos, dt ) );
+        auto res = logicCorrect( pos_PID( wayPoint - pos, dt ) );
         return limitedForce( res + vec3(0,0,9.81*params.mass) );
     }
 
@@ -319,11 +319,11 @@ protected:
         // сначала двигаемся к карте
         if( nv.len2 > 0.001 )
         {
-            local_trg_pos = pos + nv;
+            way_point = pos + nv;
             return;
         }
 
-        local_trg_pos = trg_pos;
+        way_point = trg_pos;
     }
 
     vec3[] wall;
@@ -444,8 +444,8 @@ protected:
 
     @property vec3 lookTarget() const
     {
-        if( (pos - localTarget).len2 < pow(params.min_move,2) )
+        if( (pos - wayPoint).len2 < pow(params.min_move,2) )
             return look_pnt;
-        else return (pos + vel + localTarget) * 0.5;
+        else return (pos + vel + wayPoint) * 0.5;
     }
 }

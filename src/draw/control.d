@@ -107,7 +107,7 @@ public:
             draw_unit.draw( cam );
 
             draw_unit.color = col4(1,0,1,0.5);
-            draw_unit.setCoordinate( u.localTarget, u.rot );
+            draw_unit.setCoordinate( u.wayPoint, u.rot );
             draw_unit.draw( cam );
 
             draw_unit.color = col4(0,1,1,0.5);
