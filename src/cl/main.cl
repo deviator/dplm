@@ -105,14 +105,18 @@ inline float getDepthCorrect( float v )
 {
     if( v < 0 ) return 0.5;
     if( v > 1 ) return 1;
-    int i = 0;
-    for( ; i < 99; i++ )
-        if( depth_correct_table[i].x <= v &&
-            depth_correct_table[i+1].x > v )
-            break;
+    int l = 0;
+    int r = 99;
+    while( r - l > 1 )
+    {
+        int p = (l+r)/2;
+        if( depth_correct_table[p].x > v )
+            r = p;
+        else l = p;
+    }
 
-    float2 a = depth_correct_table[i];
-    float2 b = depth_correct_table[i+1];
+    float2 a = depth_correct_table[l];
+    float2 b = depth_correct_table[r];
 
     float k = (v - a.x) / (b.x - a.x);
     return a.y * (1 - k) + b.y * k;
