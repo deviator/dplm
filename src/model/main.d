@@ -34,7 +34,6 @@ public:
 
     void step( float dt )
     {
-        writeln( "fps: ", 1 / dt );
         time += dt;
         logic( dt );
         foreach( unit; uarr )

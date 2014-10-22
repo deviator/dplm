@@ -86,18 +86,18 @@ public:
         CLGL.releaseToGL();
     }
 
-    void process() { }
-
-    void setUnitCamResolution( in ivec2 cr ) { unitcamres = cr; }
-
-    void setUnitCount( size_t cnt ) { unitcount = cnt; }
-
     protected void updateUnitData()
     {
         auto cnt = unitcount * unitcamres.x * unitcamres.y;
         if( cnt != unitpoints.elementCount )
             unitpoints.setData( new vec4[](cnt) );
     }
+
+    void process() { }
+
+    void setUnitCamResolution( in ivec2 cr ) { unitcamres = cr; }
+
+    void setUnitCount( size_t cnt ) { unitcount = cnt; }
 
     vec4[] getPoints( in vec3 pos, float dst )
     {
