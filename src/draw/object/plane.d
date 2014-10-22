@@ -47,7 +47,7 @@ protected:
 
 public:
 
-    this( Node p )
+    this( Node p=null )
     {
         super( p, SS_ShadeObject );
         clr = col4( vec3(0.7), 1 );

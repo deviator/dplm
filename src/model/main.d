@@ -6,7 +6,7 @@ import std.random;
 import des.math.linear;
 
 import model.unit;
-import model.worldmap;
+import model.dataaccess;
 
 class Model
 {
@@ -18,20 +18,23 @@ protected:
 
     float danger_dist = 10;
 
-    WorldMap wmap;
+    ModelDataAccess data;
 
 public:
 
-    this( WorldMap worldmap )
-    in{ assert( worldmap !is null ); } body
+    this( ModelDataAccess mda )
+    in{ assert( mda !is null ); } body
     {
         time = 0;
-        wmap = worldmap;
+        data = mda;
         prepareParams();
+
+        data.setUnitCamResolution( uparams.cam.res );
     }
 
     void step( float dt )
     {
+        writeln( "fps: ", 1 / dt );
         time += dt;
         logic( dt );
         foreach( unit; uarr )
@@ -47,7 +50,7 @@ public:
     /+ TODO: remove +/
     void randomizeTargets()
     {
-        auto mapsize = vec3(wmap.size) * wmap.cellSize;
+        auto mapsize = vec3(data.size) * data.cellSize;
         foreach( u; units )
         {
             u.target = vec3( rndPos(mapsize.x/2).xy, uniform(0.0f,20.0f) );
@@ -78,10 +81,10 @@ protected:
 
             pid = [ vec3(3), vec3(0), vec3(3) ];
 
-            cam.fov = 60;
+            cam.fov = 90;
             cam.min = 1;
-            cam.max = 150;
-            cam.size = ivec2(32,32);
+            cam.max = 50;
+            cam.res = ivec2(32,32);
             cam.rate = 5;
         }
     }
@@ -111,7 +114,7 @@ protected:
     Unit createDefaultUnit()
     {
         auto s = vec3(0,0,80) + rndPos(10);
-        auto buf = new Unit( PhVec(s,vec3(0)), uparams, wmap );
+        auto buf = new Unit( PhVec(s,vec3(0)), uparams, data );
         buf.target = s;
         return buf;
     }

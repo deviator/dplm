@@ -11,7 +11,7 @@ import des.il;
 
 import model.pid;
 import model.util;
-import model.worldmap;
+import model.dataaccess;
 
 import std.stdio;
 
@@ -40,15 +40,15 @@ struct UnitParams
     Tuple!(float,"fov",
            float,"min",
            float,"max",
-           ivec2,"size",
+           ivec2,"res",
            float,"rate") cam;
 
     @property float camRatio() const
-    { return cast(float)( cam.size.x ) / cam.size.y; }
+    { return cast(float)( cam.res.x ) / cam.res.y; }
 
     float maxResultDist( float cell ) const
     {
-        auto maxAngleResolution = (cam.fov / 180.0f * PI) / cam.size.y;
+        auto maxAngleResolution = (cam.fov / 180.0f * PI) / cam.res.y;
         return abs( cell / tan(maxAngleResolution) );
     }
 }
@@ -56,6 +56,9 @@ struct UnitParams
 class Unit : Node
 {
 protected:
+
+    static size_t unit_count = 0;
+    size_t id;
 
     PhVec phcrd;
     UnitParams params;
@@ -76,14 +79,16 @@ protected:
 
     SimpleCamera cam;
 
-    WorldMap wmap;
+    UnitDataAccess data;
     bool ready_to_snapshot = true;
 
 public:
 
-    this( PhVec initial, UnitParams prms, WorldMap worldmap )
-    in{ assert( worldmap !is null ); } body
+    this( PhVec initial, UnitParams prms, UnitDataAccess uda )
+    in{ assert( uda !is null ); } body
     {
+        id = unit_count++;
+
         phcrd = initial;
         params = prms;
 
@@ -91,7 +96,7 @@ public:
 
         pos_PID = new PID!vec3( prms.pid[0], prms.pid[1], prms.pid[2] );
 
-        wmap = worldmap;
+        data = uda;
 
         cam = new SimpleCamera(this);
         prepareCamera();
@@ -145,7 +150,7 @@ public:
         { return (last_snapshot_pos - pos).len2 > pow( params.min_move, 2 ); }
 
         ivec2 snapshotResolution() const
-        { return params.cam.size; }
+        { return params.cam.res; }
     }
 
     void step( float t, float dt )
@@ -169,8 +174,9 @@ public:
     {
         snapshot_timer = 0;
         last_snapshot_pos = pos;
-        updatePoints( img );
-        updateMap();
+
+        data.updateMap( id, cam.projection.matrix,
+                cam.far, matrix * cam.transform.matrix, img.mapAs!float );
     }
 
 protected:
@@ -183,51 +189,38 @@ protected:
         cam.far   = params.cam.max;
     }
 
-    void updatePoints( in Image!2 img )
+    version(none)
     {
-        auto ih = img.size.h;
-        auto iw = img.size.w;
+        void updatePoints( in Image!2 img )
+        {
+            auto ih = img.size.h;
+            auto iw = img.size.w;
 
-        ldpoints.length = ih*iw;
+            ldpoints.length = ih*iw;
 
-        auto pr_inv = cam.projection.matrix.inv;
-        auto tr_inv = matrix * cam.transform.matrix;
+            auto pr_inv = cam.projection.matrix.inv;
+            auto tr_inv = matrix * cam.transform.matrix;
 
-        auto mrd = params.maxResultDist( minCellSize );
-
-        foreach( iy; 0 .. ih )
-            foreach( ix; 0 .. iw )
-            {
-                auto val = img.pixel!float(ix,iy);
-
-                auto fx = (ix+0.5f) / iw * 2 - 1;
-                auto fy = (iy+0.5f) / ih * 2 - 1;
-
-                auto b = project( pr_inv, vec3(fx,fy,val) );
-
-                float fp = val < 1-1e-6 ? 1.0f : 0.0f;
-                b *= getCorrect( b.z );
-
-                version(clipbycamres)
+            foreach( iy; 0 .. ih )
+                foreach( ix; 0 .. iw )
                 {
-                    if( abs(b.z) > mrd )
-                    {
-                        fp = 0;
-                        b *= mrd / abs(b.z);
-                    }
+                    auto val = img.pixel!float(ix,iy);
+
+                    auto fx = (ix+0.5f) / iw * 2 - 1;
+                    auto fy = (iy+0.5f) / ih * 2 - 1;
+
+                    auto b = project( pr_inv, vec3(fx,fy,val) );
+
+                    float fp = val < 1-1e-6 ? 1.0f : 0.0f;
+                    b *= getCorrect( b.z );
+
+                    b = project( tr_inv, b );
+
+                    auto p = b;
+                    ldpoints ~= vec4( p, fp );
                 }
-
-                b = project( tr_inv, b );
-
-                auto p = b;
-                ldpoints ~= vec4( p, fp );
-            }
+        }
     }
-
-    @property float minCellSize() const
-    { return reduce!min(wmap.cellSize.data.dup); }
-
-    void updateMap() { wmap.setPoints( pos, ldpoints ); }
 
     static vec3 project( in mat4 m, in vec3 v )
     {
@@ -238,16 +231,16 @@ protected:
     float getCorrect( float val_z ) const
     {
         auto p = abs( val_z / cam.far );
-        return 1 - getDepthRelativeError(p);
+        return getDepthCorrect(p);
     }
 
     PhVec rpart( float t, float dt )
     {
-        auto f = drag( vel, 1 ) + controlForce( dt );
+        auto f = drag(vel,1) + controlForce(dt);
         auto a = f / params.mass + vec3(0,0,-9.81);
 
         PhVec ret;
-        ret.pos = phcrd.vel;
+        ret.pos = vel;
         ret.vel = a;
         ret.rot = quat(0);
 
@@ -260,7 +253,8 @@ protected:
     vec3 controlForce( float dt )
     {
         updateLocalTarget();
-        auto res = logicCorrect( pos_PID( limitedForce(wayPoint-pos), dt ) );
+        auto pp = pos_PID( limitedForce(wayPoint-pos), dt );
+        auto res = logicCorrect( pp );
         return limitedForce( res + vec3(0,0,9.81*params.mass) );
     }
 
@@ -296,15 +290,8 @@ protected:
         foreach( d; dangers )
         {
             auto dst = pos - d.pnt;
-            corr += dst.e / ( dst.len2 + 0.1 );
-
-            if( d.dir.len2 > 0 )
-            {
-                auto vdst = crs.altitude(d);
-                auto pp = vdst.pnt - pos;
-
-                corr += -vdst.dir.e * vel.len / ( pp.len2 + 0.1 );
-            }
+            if( dst.len2 > 0 )
+                corr += dst.e / ( dst.len2 + 0.1 );
         }
         corr /= dangers.length;
         dangers.length = 0;
@@ -314,7 +301,7 @@ protected:
 
     void updateLocalTarget()
     {
-        auto nv = wmap.nearestVolume(pos);
+        auto nv = data.nearestVolume(pos);
 
         // сначала двигаемся к карте
         if( nv.len2 > 0.001 )
@@ -371,7 +358,7 @@ protected:
     {
         float dang_dst = max_dst / 2;
 
-        auto mpts = ldpoints ~ wmap.getFillPoints( pos, max_dst );
+        auto mpts = ldpoints ~ data.getPoints( pos, max_dst );
 
         trg = calcNear( mpts, trg, dang_dst );
 

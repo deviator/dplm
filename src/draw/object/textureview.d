@@ -38,7 +38,7 @@ void main()
 class TextureView : GLSimpleObject
 {
 protected:
-    GLArrayBuffer[string] pnt;
+    GLBuffer[string] pnt;
 
     void delegate() predrawfnc;
 

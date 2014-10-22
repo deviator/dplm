@@ -26,7 +26,7 @@ private:
     World world;
     CLWorldMap worldmap;
     DrawUnit draw_unit;
-    Point ddot;
+    CalcPoint ddot;
 
     Render render; 
 
@@ -49,18 +49,21 @@ public:
     {
         cam = c;
 
-        worldmap = new CLWorldMap( ivec3(200,200,50), vec3(1) );
+        ddot = new CalcPoint(null);
+
+        worldmap = new CLWorldMap( ivec3(200,200,50), vec3(1), ddot.data );
         worldmap.needDraw = false;
 
         mdl = new Model( worldmap );
 
-        mdl.appendUnits( 1 );
+        auto unit_count = 20;
+
+        mdl.appendUnits( unit_count );
+        worldmap.setUnitCount( unit_count );
 
         world = new World( vec2(200,200), 50 );
         render = new Render;
         draw_unit = new DrawUnit(null);
-
-        ddot = new Point(null);
 
         tm = new Timer;
     }
@@ -95,8 +98,6 @@ public:
         if( draw_world_in_view )
             world.draw( cam );
 
-        ddot.reset();
-
         foreach( i, u; mdl.units )
         {
             if( u.nearTarget )
@@ -115,13 +116,7 @@ public:
             draw_unit.draw( cam );
 
             ddot.color = col4(0,1,0,1);
-            ddot.set( u.lastSnapshot );
             ddot.size(2);
-            ddot.draw( cam );
-
-            ddot.color = col4(1,0,0,1);
-            ddot.set( u.lastWall );
-            ddot.size(3);
             ddot.draw( cam );
         }
 
@@ -132,6 +127,7 @@ public:
 
     void keyControl( in KeyboardEvent ev )
     {
+        auto trg = mdl.units[$-1].target;
         if( ev.pressed )
         {
             switch( ev.scan )
@@ -156,6 +152,22 @@ public:
                 /+ TODO: remove +/
                 case ev.Scan.R:
                     mdl.randomizeTargets();
+                    break;
+
+                case ev.Scan.UP:
+                    mdl.units[$-1].target = trg + vec3(1,0,0) * 0.1;
+                    break;
+                case ev.Scan.DOWN:
+                    mdl.units[$-1].target = trg - vec3(1,0,0) * 0.1;
+                    break;
+                case ev.Scan.LEFT:
+                    mdl.units[$-1].target = trg + vec3(0,1,0) * 0.1;
+                    break;
+                case ev.Scan.RIGHT:
+                    mdl.units[$-1].target = trg - vec3(0,1,0) * 0.1;
+                    break;
+                case ev.Scan.I:
+                    mdl.units[$-1].target = vec3(-1,0,1);
                     break;
 
                 case ev.Scan.G:
