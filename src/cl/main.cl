@@ -163,30 +163,24 @@ inline uint3 coordinate( const uint3 size, size_t ind )
     return ret;
 }
 
-kernel void updateMap( global float* map, const uint4 esize,
-                       const uint unitid,
-                       const float4 ud_pos,
-                       const float16 ud_persp_inv,
-                       const float16 ud_transform,
-                       global float* depth, const uint2 camres,
-                       global float4* points, const float16 tomap )
+kernel void depthToPoint( global float* depth,
+                          const uint2 camres,
+                          const float camfar,
+                          const float16 ud_persp_inv,
+                          const float16 ud_transform,
+                          global float4* points,
+                          const uint unitid )
 {
     int i = get_global_id(0);
     int sz = get_global_size(0);
 
-    uint3 size = (uint3)(esize.xyz);
-    uint pixcnt = camres.x * camres.y;
-    uint pstart = pixcnt * unitid;
+    uint pcnt = camres.x * camres.y;
+    uint pstart = pcnt * unitid;
 
-    for( ; i < pixcnt; i+=sz )
+    for( ; i < pcnt; i += sz )
     {
-        uint uind = i / pixcnt;
-        uint pind = i % pixcnt;
-
-        float camfar = ud_pos.w;
-
-        uint ix = pind % camres.x;
-        uint iy = pind / camres.x;
+        uint ix = i % camres.x;
+        uint iy = i / camres.x;
 
         float fx = (ix+0.5f) / camres.x * 2 - 1;
         float fy = (iy+0.5f) / camres.y * 2 - 1;
@@ -199,9 +193,28 @@ kernel void updateMap( global float* map, const uint4 esize,
         bg = project( ud_transform, bg );
 
         points[pstart+i] = (float4)(bg,fp);
+    }
+}
+
+kernel void updateMap( global float* map, const uint4 esize,
+                       const uint unitid,
+                       const float4 ud_pos,
+                       const uint2 camres,
+                       global float4* points, const float16 tomap )
+{
+    int i = get_global_id(0);
+    int sz = get_global_size(0);
+
+    uint3 size = (uint3)(esize.xyz);
+    uint pcnt = camres.x * camres.y;
+    uint pstart = pcnt * unitid;
+
+    for( ; i < pcnt; i+=sz )
+    {
+        float4 bg = points[pstart+i];
 
         float3 a = project( tomap, ud_pos.xyz );
-        float3 b = project( tomap, bg );
+        float3 b = project( tomap, bg.xyz );
 
         float3 dir = b - a;
 
@@ -217,7 +230,7 @@ kernel void updateMap( global float* map, const uint4 esize,
                 map[mapind] = 0;
         }
 
-        if( inRegionF( size, b ) && fp > 0 )
+        if( inRegionF( size, b ) && bg.w > 0 )
             map[index( size, (uint3)( b.x, b.y, b.z ) )] = 1;
     }
 }

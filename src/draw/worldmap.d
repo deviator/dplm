@@ -75,12 +75,19 @@ public:
 
         CLGL.acquireFromGL( dmap, unitdepth, unitpoints );
 
+        kernel["depthToPoint"].setArgs( unitdepth,
+                                        uivec2(unitcamres),
+                                        camfar,
+                                        persp.inv,
+                                        mat4( transform ),
+                                        unitpoints,
+                                        cast(uint)unitid );
+        kernel["depthToPoint"].exec( 1, [0], [1024], [32] );
+
         kernel["updateMap"].setArgs( dmap, uivec4(mres,0),
                                      cast(uint)unitid,
                                      vec4( pos, camfar ),
-                                     persp.inv,
-                                     mat4( transform ),
-                                     unitdepth, uivec2(unitcamres),
+                                     uivec2(unitcamres),
                                      unitpoints, matrix.inv );
         kernel["updateMap"].exec( 1, [0], [1024], [32] );
         CLGL.releaseToGL();
