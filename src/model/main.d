@@ -71,14 +71,14 @@ protected:
             vfmin = -20;
             vfmax = 60;
 
-            CxS = 0.1;
-            mass = 2;
+            CxS = 0.15;
+            mass = 0.5;
 
             ready.dst = 0.05;
             ready.vel = 0.01;
             min_move = 0.2;
 
-            pid = [ vec3(3), vec3(0), vec3(3) ];
+            pid = [ vec3(3), vec3(0), vec3(1) ];
 
             cam.fov = 90;
             cam.min = 1;

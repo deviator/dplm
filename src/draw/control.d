@@ -56,7 +56,7 @@ public:
 
         mdl = new Model( worldmap );
 
-        auto unit_count = 20;
+        auto unit_count = 10;
 
         mdl.appendUnits( unit_count );
         worldmap.setUnitCount( unit_count );

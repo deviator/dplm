@@ -155,6 +155,7 @@ public:
 
     void step( float t, float dt )
     {
+        calcWayPoint();
         phcrd += rpart( t, dt ) * dt;
         timer( dt );
     }
@@ -189,51 +190,6 @@ protected:
         cam.far   = params.cam.max;
     }
 
-    version(none)
-    {
-        void updatePoints( in Image!2 img )
-        {
-            auto ih = img.size.h;
-            auto iw = img.size.w;
-
-            ldpoints.length = ih*iw;
-
-            auto pr_inv = cam.projection.matrix.inv;
-            auto tr_inv = matrix * cam.transform.matrix;
-
-            foreach( iy; 0 .. ih )
-                foreach( ix; 0 .. iw )
-                {
-                    auto val = img.pixel!float(ix,iy);
-
-                    auto fx = (ix+0.5f) / iw * 2 - 1;
-                    auto fy = (iy+0.5f) / ih * 2 - 1;
-
-                    auto b = project( pr_inv, vec3(fx,fy,val) );
-
-                    float fp = val < 1-1e-6 ? 1.0f : 0.0f;
-                    b *= getCorrect( b.z );
-
-                    b = project( tr_inv, b );
-
-                    auto p = b;
-                    ldpoints ~= vec4( p, fp );
-                }
-        }
-    }
-
-    static vec3 project( in mat4 m, in vec3 v )
-    {
-        auto buf = m * vec4( v, 1.0f );
-        return buf.xyz / buf.w;
-    }
-
-    float getCorrect( float val_z ) const
-    {
-        auto p = abs( val_z / cam.far );
-        return getDepthCorrect(p);
-    }
-
     PhVec rpart( float t, float dt )
     {
         auto f = drag(vel,1) + controlForce(dt);
@@ -252,9 +208,13 @@ protected:
 
     vec3 controlForce( float dt )
     {
-        updateLocalTarget();
-        auto pp = pos_PID( limitedForce(wayPoint-pos), dt );
-        auto res = logicCorrect( pp );
+        auto flist =
+            [
+                limitedForce( pos_PID( limitedForce(wayPoint-pos), dt ) ),
+                processDanger(),
+                nearCorrect(),
+            ];
+        auto res = reduce!((r,a)=>(r+=a))( flist );
         return limitedForce( res + vec3(0,0,9.81*params.mass) );
     }
 
@@ -265,20 +225,6 @@ protected:
         if( ff.z > params.vfmax ) ff.z = params.vfmax;
         if( ff.z < params.vfmin ) ff.z = params.vfmin;
         return ff;
-    }
-
-    vec3 logicCorrect( vec3 trgf )
-    {
-        
-        auto ff = limitedForce( trgf );
-        auto pd = limitedForce( processDanger() );
-        auto cc = vec3(0,0,0);
-        if( pos.z < 1 ) cc.z = params.vfmax;
-        return ff + pd + cc;
-        //auto res = ff + pd + cc;
-        //auto cr = processMap( res );
-        //if( cr.len2 == 0 ) return res;
-        //return cr.e * res.len;
     }
 
     vec3 processDanger()
@@ -299,7 +245,29 @@ protected:
         return corr;
     }
 
-    void updateLocalTarget()
+    vec3 nearCorrect()
+    {
+        float max_dst = 5;
+        float max_dst2 = pow( max_dst, 2 );
+        auto mpts = data.getPoints( pos, max_dst );
+
+        bool filtering( in vec4 pnt )
+        { return pnt.w > 0.5 && pnt.xyz.len2 < max_dst2; }
+
+        return reduce!((r,pnt)
+                {
+                    auto d = pos-pnt;
+                    auto dl = d.len;
+                    //return r += d/dl * (max_dst-dl) * ( abs(dot(d,vel)) + 20 );
+                    return r += d / pow(dl,3) * 100;// * pow((max_dst - dl),2);
+                })( vec3(0,0,0), map!(a=>a.xyz)( filter!((pnt)
+                {
+                    return ( pnt.w > 0.5 || pnt.w is float.nan )
+                        && (pos-pnt.xyz).len2 < max_dst2; 
+                })(mpts) ) );
+    }
+
+    void calcWayPoint()
     {
         auto nv = data.nearestVolume(pos);
 
