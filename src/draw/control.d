@@ -28,7 +28,7 @@ private:
     DrawUnit draw_unit;
     CalcPoint ddot;
 
-    Render render; 
+    GLRenderToTex render;
 
     Timer tm;
 
@@ -62,7 +62,7 @@ public:
         worldmap.setUnitCount( unit_count );
 
         world = new World( vec2(200,200), 50 );
-        render = new Render;
+        render = new GLRenderToTex;
         draw_unit = new DrawUnit(null);
 
         tm = new Timer;
