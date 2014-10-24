@@ -112,7 +112,7 @@ protected:
 
     Unit createDefaultUnit()
     {
-        auto s = vec3(0,0,80) + rndPos(10);
+        auto s = vec3(0,0,80) + rndPos(1);
         auto buf = new Unit( PhVec(s,vec3(0)), uparams, data );
         buf.target = s;
         return buf;

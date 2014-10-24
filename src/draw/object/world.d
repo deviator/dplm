@@ -21,11 +21,11 @@ struct CCData
 class World : DrawNodeList
 {
     this( in vec2 size, float maxH, in vec3 minBlock=vec3(10,10,4),
-                                    in vec3 maxBlock=vec3(100,100,40) )
+                                    in vec3 maxBlock=vec3(50,50,50) )
     { regen( size, maxH, minBlock, maxBlock ); }
 
     void regen( in vec2 size, float maxH, in vec3 minBlock=vec3(10,10,4),
-                                        in vec3 maxBlock=vec3(100,100,40) )
+                                        in vec3 maxBlock=vec3(50,50,50) )
     {
         foreach( o; list ) o.destroy();
         list.length = 0;
@@ -43,7 +43,7 @@ class World : DrawNodeList
 
     void genRandomBuilds( in vec2 minPos, in vec2 maxPos, float maxH,
             in vec3 minBlock, in vec3 maxBlock, in vec3 step,
-            size_t count=100 )
+            size_t count=1000 )
     {
         auto volume = ivec3( (maxPos-minPos) / step.xy, maxH / step.z );
         auto minB = ivec3( minBlock / step );
@@ -69,17 +69,16 @@ class World : DrawNodeList
             {
                 buf = genRandomCube( volume, minB, maxB );
                 attempt++;
-                if( attempt > attemptLim )
-                    return ret;
+                if( attempt > attemptLim ) return ret;
             }
             while( intersect(buf,ret) );
             ret ~= buf;
 
-            auto inner = genRandomCCData( ivec3( buf.size.xy, volume.z-buf.size.z ), minB, buf.size, 10 );
+            //auto inner = genRandomCCData( ivec3( buf.size.xy, volume.z-buf.size.z ), minB, buf.size, 10 );
 
-            auto h = ivec3( 0,0,buf.size.z );
-            foreach( m; inner )
-                ret ~= CCData( m.pos + buf.pos + h, m.size );
+            //auto h = ivec3( 0,0,buf.size.z );
+            //foreach( m; inner )
+            //    ret ~= CCData( m.pos + buf.pos + h, m.size );
         }
         return ret;
     }

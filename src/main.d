@@ -2,6 +2,8 @@ import std.stdio;
 import des.app;
 import draw.window;
 
+import des.util;
+
 void info(Args...)( Args args )
 {
     stdout.writefln( args );
@@ -10,10 +12,10 @@ void info(Args...)( Args args )
 
 void main()
 {
-    info( "app start" );
+    log_trace( "app start" );
     GLApp app = new GLApp;
     app.addWindow({ return new MainWindow( "diploma simulator", ivec2(800,600) ); });
     app.run();
     app.destroy();
-    info( "app finish" );
+    log_trace( "app finish" );
 }

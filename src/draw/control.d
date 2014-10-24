@@ -13,7 +13,7 @@ import draw.object.point;
 import draw.object.plane;
 import draw.worldmap;
 
-import des.gl.post.render;
+import des.gl.base.render;
 
 import des.il;
 
@@ -56,7 +56,7 @@ public:
 
         mdl = new Model( worldmap );
 
-        auto unit_count = 10;
+        auto unit_count = 5;
 
         mdl.appendUnits( unit_count );
         worldmap.setUnitCount( unit_count );

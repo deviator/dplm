@@ -1,6 +1,7 @@
 module model.unit;
 
 import std.math;
+import std.range;
 import std.typecons;
 import std.algorithm;
 
@@ -210,8 +211,7 @@ protected:
     {
         auto flist =
             [
-                limitedForce( pos_PID( limitedForce(wayPoint-pos), dt ) ),
-                processDanger(),
+                limitedForce( pos_PID( wayPoint-pos, dt ) ),
                 nearCorrect(),
             ];
         auto res = reduce!((r,a)=>(r+=a))( flist );
@@ -227,44 +227,25 @@ protected:
         return ff;
     }
 
-    vec3 processDanger()
-    {
-        if( dangers.length == 0 ) return vec3(0);
-
-        auto crs = fSeg( pos, vel );
-        vec3 corr;
-        foreach( d; dangers )
-        {
-            auto dst = pos - d.pnt;
-            if( dst.len2 > 0 )
-                corr += dst.e / ( dst.len2 + 0.1 );
-        }
-        corr /= dangers.length;
-        dangers.length = 0;
-
-        return corr;
-    }
-
     vec3 nearCorrect()
     {
-        float max_dst = 5;
+        float max_dst = 4.8;
         float max_dst2 = pow( max_dst, 2 );
         auto mpts = data.getPoints( pos, max_dst );
 
-        bool filtering( in vec4 pnt )
-        { return pnt.w > 0.5 && pnt.xyz.len2 < max_dst2; }
-
         return reduce!((r,pnt)
                 {
-                    auto d = pos-pnt;
+                    auto d = pnt - pos;
                     auto dl = d.len;
-                    //return r += d/dl * (max_dst-dl) * ( abs(dot(d,vel)) + 20 );
-                    return r += d / pow(dl,3) * 100;// * pow((max_dst - dl),2);
-                })( vec3(0,0,0), map!(a=>a.xyz)( filter!((pnt)
-                {
-                    return ( pnt.w > 0.5 || pnt.w is float.nan )
-                        && (pos-pnt.xyz).len2 < max_dst2; 
-                })(mpts) ) );
+                    auto ve = vel.e;
+                    auto de = d.e;
+                    auto pv = dot(de,ve);
+                    auto nk = cross( cross( de, ve ), de );
+                    if( !nk ) nk = vec3(0);
+                    return r += ( ( -de * pow(max_dst-dl,2) * 2 + nk ) * ( max(0,dot(de,ve)) + 0.001 ) ) * 4;
+                })( vec3(0,0,0), filter!(a=>(a-pos).len2 < max_dst2)(
+                        chain( map!(a=>a.xyz)(filter!(a=>!(a.w<0.5))(mpts)),
+                               map!(a=>a.pnt)(dangers) ) ) );
     }
 
     void calcWayPoint()
