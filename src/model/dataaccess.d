@@ -4,7 +4,7 @@ import des.math.linear;
 
 interface UnitDataAccess
 {
-    void updateMap( size_t no, in mat4 persp, float camfar, in mat4 transform, in float[] depth );
+    void updateMap( size_t no, in mat4 persp, float camfar, in mat4 transform, Object depth );
     vec3 nearestVolume( in vec3 pos );
     vec4[] getPoints( in vec3 pos, float dst );
 }

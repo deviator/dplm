@@ -171,13 +171,13 @@ public:
         return ret;
     }
 
-    void addSnapshot( in Image!2 img )
+    void addSnapshot( Object depth )
     {
         snapshot_timer = 0;
         last_snapshot_pos = pos;
 
         data.updateMap( id, cam.projection.matrix,
-                cam.far, matrix * cam.transform.matrix, img.mapAs!float );
+                cam.far, matrix * cam.transform.matrix, depth );
     }
 
 protected:

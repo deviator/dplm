@@ -2,6 +2,7 @@ module draw.worldmap;
 
 import std.stdio;
 import std.conv;
+import std.exception;
 
 import des.cl.glsimple;
 
@@ -47,7 +48,7 @@ protected:
         }
     }
 
-    CalcBuffer unitdepth, unitpoints;
+    CalcBuffer unitpoints;
 
     ivec2 unitcamres;
     size_t unitcount;
@@ -66,12 +67,14 @@ public:
     }
 
     void updateMap( size_t unitid, in mat4 persp, float camfar,
-                      in mat4 transform, in float[] depth )
+                      in mat4 transform, Object depth )
     {
         auto pos = vec3(transform.col(3)[0..3]);
 
+        auto unitdepth = cast(CalcTexture)(depth);
+        enforce( unitdepth !is null );
+
         updateUnitData();
-        unitdepth.setData( depth );
 
         CLGL.acquireFromGL( dmap, unitdepth, unitpoints );
 
@@ -207,8 +210,6 @@ protected:
         auto loc = shader.getAttribLocation( "data" );
         setAttribPointer( dmap, loc, 1, GLType.FLOAT );
         dmap.setData( new float[](cnt) );
-
-        unitdepth = registerChildEMM( new CalcBuffer() );
 
         near = registerChildEMM( new CalcBuffer() );
     }

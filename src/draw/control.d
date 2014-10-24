@@ -11,9 +11,8 @@ import draw.camera;
 import draw.object.world;
 import draw.object.point;
 import draw.object.plane;
+import draw.render;
 import draw.worldmap;
-
-import des.gl.post.render;
 
 import des.il;
 
@@ -28,7 +27,7 @@ private:
     DrawUnit draw_unit;
     CalcPoint ddot;
 
-    Render render; 
+    CalcRender render;
 
     Timer tm;
 
@@ -62,7 +61,7 @@ public:
         worldmap.setUnitCount( unit_count );
 
         world = new World( vec2(200,200), 50 );
-        render = new Render;
+        render = new CalcRender;
         draw_unit = new DrawUnit(null);
 
         tm = new Timer;
@@ -85,8 +84,7 @@ public:
                 {
                     render( u.snapshotResolution,
                     { world.draw( u.camera ); });
-                    render.depth.getImage( buf_depth );
-                    u.addSnapshot( buf_depth );
+                    u.addSnapshot( render.depth );
                 }
             mdl.step( tm.cycle() );
             worldmap.process();

@@ -163,7 +163,7 @@ inline uint3 coordinate( const uint3 size, size_t ind )
     return ret;
 }
 
-kernel void depthToPoint( global float* depth,
+kernel void depthToPoint( global image2d_t depth_img,
                           const uint2 camres,
                           const float camfar,
                           const float16 ud_persp_inv,
@@ -177,17 +177,21 @@ kernel void depthToPoint( global float* depth,
     uint pcnt = camres.x * camres.y;
     uint pstart = pcnt * unitid;
 
+    sampler_t smp = CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
+
     for( ; i < pcnt; i += sz )
     {
         uint ix = i % camres.x;
         uint iy = i / camres.x;
 
+        float depth = read_imagef( depth_img, smp, (int2)(ix,iy) ).x;
+
         float fx = (ix+0.5f) / camres.x * 2 - 1;
         float fy = (iy+0.5f) / camres.y * 2 - 1;
 
-        float3 bg = project( ud_persp_inv, (float3)(fx,fy,depth[i]) );
+        float3 bg = project( ud_persp_inv, (float3)(fx,fy,depth) );
 
-        float fp = (depth[i] < 1.0f-1e-5) ? 1.0f : 0.0f;
+        float fp = (depth < 1.0f-1e-5) ? 1.0f : 0.0f;
 
         bg *= getDepthCorrect( fabs(bg.z/camfar) );
         bg = project( ud_transform, bg );
