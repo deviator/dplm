@@ -33,3 +33,11 @@
 }
 
 \graphicspath{{pics/}}
+
+\makeatletter
+\newcommand{\nextverbatimspread}[1]{%
+    \def\verbatim@font{%
+        \linespread{#1}\normalfont\ttfamily% Updated definition
+            \gdef\verbatim@font{\normalfont\ttfamily}}% Revert to old definition
+}
+\makeatother
