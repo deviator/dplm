@@ -15,12 +15,16 @@
 \usepackage{graphicx}
 \usepackage{epstopdf}
 \usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usepackage{color}
+
 \usetikzlibrary{arrows}
 \usetikzlibrary{calc}
 
 \renewcommand{\vec}{\overline}
 \renewcommand{\phi}{\varphi}
 
+% список с корректированным межстрочным интервалом
 \newenvironment{mintemize}%
 {
     \vspace{-0.5em}
@@ -34,6 +38,7 @@
 
 \graphicspath{{pics/}}
 
+% назначение межстрочного интервала в verbatim
 \makeatletter
 \newcommand{\nextverbatimspread}[1]{%
     \def\verbatim@font{%
@@ -41,3 +46,7 @@
             \gdef\verbatim@font{\normalfont\ttfamily}}% Revert to old definition
 }
 \makeatother
+
+% ссылки на новой странице с 1
+\usepackage{perpage}
+\MakePerPage{footnote}
