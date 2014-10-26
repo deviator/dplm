@@ -1,0 +1,840 @@
+\newpage
+\section{Приложение Б}
+
+\subsection{model/dataaccess.d}
+
+\nextverbatimspread{1}
+\begin{verbatim}
+module model.dataaccess;
+
+import des.math.linear;
+
+interface UnitDataAccess
+{
+    void updateMap( size_t no, in mat4 persp, float camfar,
+                    in mat4 transform, in float[] depth );
+    vec3 nearestVolume( in vec3 pos );
+    vec4[] getPoints( in vec3 pos, float dst );
+}
+
+interface ModelDataAccess : UnitDataAccess
+{
+    void setUnitCamResolution( in ivec2 res );
+    void setUnitCount( size_t );
+
+    alias Vector!(3,size_t,"w h d") mapsize_t;
+
+    @property mapsize_t size() const;
+    @property vec3 cellSize() const;
+}
+\end{verbatim}
+
+\subsection{model/main.d}
+
+\nextverbatimspread{1}
+\begin{verbatim}
+module model.main;
+
+import std.stdio;
+import std.random;
+
+import des.math.linear;
+
+import model.unit;
+import model.dataaccess;
+
+class Model
+{
+protected:
+    
+    UnitParams uparams;
+    Unit[] uarr;
+    float time;
+
+    float danger_dist = 10;
+
+    ModelDataAccess data;
+
+public:
+
+    this( ModelDataAccess mda )
+    in{ assert( mda !is null ); } body
+    {
+        time = 0;
+        data = mda;
+        prepareParams();
+
+        data.setUnitCamResolution( uparams.cam.res );
+    }
+
+    void step( float dt )
+    {
+        time += dt;
+        logic( dt );
+        foreach( unit; uarr )
+            unit.step( time, dt );
+    }
+
+    void appendUnits( size_t n )
+    {
+        foreach( i; 0 .. n )
+            uarr ~= createDefaultUnit();
+    }
+
+    void randomizeTargets()
+    {
+        auto mapsize = vec3(data.size) * data.cellSize;
+        foreach( u; units )
+        {
+            u.target = vec3( rndPos(mapsize.x/2).xy, uniform(0.0f,20.0f) );
+            u.lookPnt = vec3( rndPos(mapsize.x/2).xy, 0 );
+        }
+    }
+
+    @property Unit[] units() { return uarr; }
+
+protected:
+
+    void prepareParams()
+    {
+        auto glim = vec2(20);
+
+        with(uparams)
+        {
+            gflim = 20;
+            vfmin = -20;
+            vfmax = 60;
+
+            CxS = 0.15;
+            mass = 0.5;
+
+            ready.dst = 0.05;
+            ready.vel = 0.01;
+            min_move = 0.2;
+
+            pid = [ vec3(3), vec3(0), vec3(1) ];
+
+            cam.fov = 90;
+            cam.min = 1;
+            cam.max = 50;
+            cam.res = ivec2(32,32);
+            cam.rate = 5;
+        }
+    }
+
+    void logic( float dt )
+    { processDangerUnits(); }
+
+    void processDangerUnits()
+    {
+        auto cnt = units.length;
+        foreach( i; 0 .. cnt )
+            foreach( j; 0 .. cnt )
+            {
+                if( i == j ) continue;
+                auto a = units[i];
+                auto b = units[j];
+                if( (a.pos - b.pos).len2 < danger_dist * dan ger_dist )
+                {
+                    a.appendDanger( fSeg( b.pos, b.vel ) );
+                    b.appendDanger( fSeg( a.pos, a.vel ) );
+                }
+            }
+    }
+
+    Unit createDefaultUnit()
+    {
+        auto s = vec3(0,0,80) + rndPos(1);
+        auto buf = new Unit( PhVec(s,vec3(0)), uparams, data );
+        buf.target = s;
+        return buf;
+    }
+
+    vec3 rndPos( float dst )
+    {
+        auto uf() { return uniform(-dst,dst); }
+        return vec3( uf, uf, uf*0.5 );
+    }
+}
+\end{verbatim}
+
+\subsection{model/unit.d}
+
+\nextverbatimspread{1}
+\begin{verbatim}
+module model.unit;
+
+import std.math;
+import std.range;
+import std.typecons;
+import std.algorithm;
+
+import des.math.linear;
+import des.math.basic;
+
+import des.il;
+
+import model.pid;
+import model.util;
+import model.dataaccess;
+
+import std.stdio;
+
+struct PhVec
+{
+    vec3 pos, vel;
+    quat rot = quat(0,0,0,1);
+
+    mixin( BasicMathOp!"pos vel rot" );
+}
+
+struct UnitParams
+{
+    float gflim;
+    float vfmin;
+    float vfmax;
+
+    float CxS;
+    float mass;
+
+    Tuple!( float, "dst", float, "vel" ) ready;
+    float min_move;
+
+    vec3[3] pid;
+
+    Tuple!(float,"fov",
+           float,"min",
+           float,"max",
+           ivec2,"res",
+           float,"rate") cam;
+
+    @property float camRatio() const
+    { return cast(float)( cam.res.x ) / cam.res.y; }
+
+    float maxResultDist( float cell ) const
+    {
+        auto maxAngleResolution = (cam.fov / 180.0f * PI) / cam.res.y;
+        return abs( cell / tan(maxAngleResolution) );
+    }
+}
+
+class Unit : Node
+{
+protected:
+
+    static size_t unit_count = 0;
+    size_t id;
+
+    PhVec phcrd;
+    UnitParams params;
+
+    float snapshot_timer = 0;
+
+    vec3 trg_pos;
+
+    vec3 way_point;
+
+    vec3 last_snapshot_pos;
+    vec3 look_pnt;
+
+    fSeg[] dangers;
+    vec4[] ldpoints;
+
+    vec3[] track;
+    float min_track_dist = 0.2;
+    size_t max_track_cnt = 4096;
+
+    PID!vec3 pos_PID;
+
+    SimpleCamera cam;
+
+    UnitDataAccess data;
+    bool ready_to_snapshot = true;
+
+public:
+
+    this( PhVec initial, UnitParams prms, UnitDataAccess uda )
+    in{ assert( uda !is null ); } body
+    {
+        id = unit_count++;
+
+        phcrd = initial;
+        params = prms;
+
+        trg_pos = initial.pos;
+
+        pos_PID = new PID!vec3( prms.pid[0], prms.pid[1], prms.pid[2] );
+
+        data = uda;
+
+        cam = new SimpleCamera(this);
+        prepareCamera();
+    }
+
+    @property
+    {
+        const
+        {
+            vec3 pos() { return phcrd.pos; }
+            vec3 vel() { return phcrd.vel; }
+            quat rot() { return phcrd.rot; }
+
+            /+ interface Node +/
+            mat4 matrix() { return quatAndPosToMatrix( phcrd.rot, phcrd.pos ); }
+            const(Node) parent() { return null; }
+            /+ --//-- +/
+        }
+        
+        void target( in vec3 tp )
+        {
+            trg_pos = tp;
+            ready_to_snapshot = true;
+        }
+
+        vec3 target() const { return trg_pos; }
+        vec3 wayPoint() const { return way_point; }
+
+        void lookPnt( in vec3 lp ) { look_pnt = lp; }
+        vec3 lookPnt() const { return look_pnt; }
+
+        Camera camera()
+        {
+            updateCamera();
+            return cam;
+        }
+
+        bool nearTarget() const
+        {
+            return (wayPoint - pos).len2 < pow( params.ready.dst, 2 ) &&
+                vel.len2 < pow( params.ready.vel, 2 );
+        }
+
+        bool readyToSnapshot() const
+        { return snapshotTimeout && hasMinMoveFromLastSnapshot; }
+
+        bool snapshotTimeout() const
+        { return snapshot_timer > 1.0f / params.cam.rate; }
+
+        bool hasMinMoveFromLastSnapshot() const
+        { return (last_snapshot_pos - pos).len2 > pow( params.min_move, 2 ); }
+
+        uivec2 snapshotResolution() const
+        { return uivec2( params.cam.res ); }
+    }
+
+    void step( float t, float dt )
+    {
+        calcWayPoint();
+        phcrd += rpart( t, dt ) * dt;
+        timer( dt );
+        trackAppend();
+    }
+
+    void appendDanger( in fSeg[] d... ) { dangers ~= d; }
+
+    @property vec3[] currentTrack() { return track; }
+
+    @property vec4[] lastSnapshot() { return ldpoints; }
+
+    void addSnapshot( in Image!2 img )
+    {
+        snapshot_timer = 0;
+        last_snapshot_pos = pos;
+
+        data.updateMap( id, cam.projection.matrix,
+                cam.far, matrix * cam.transform.matrix, img.mapAs!float );
+    }
+
+protected:
+
+    void trackAppend()
+    {
+        if( track.length && (track[$-1] - pos).len2 < pow(min_track_dist,2) ) re
+turn;
+
+        if( track.length >= max_track_cnt )
+            track = track[1..$] ~ pos;
+        else track ~= pos;
+    }
+
+    void prepareCamera()
+    {
+        cam.fov   = params.cam.fov;
+        cam.ratio = params.camRatio;
+        cam.near  = params.cam.min;
+        cam.far   = params.cam.max;
+    }
+
+    PhVec rpart( float t, float dt )
+    {
+        auto f = drag(vel,1) + controlForce(dt);
+        auto a = f / params.mass + vec3(0,0,-9.81);
+
+        PhVec ret;
+        ret.pos = vel;
+        ret.vel = a;
+        ret.rot = quat(0);
+
+        return ret;
+    }
+
+    vec3 drag( in vec3 v, float rho ) const
+    { return -v * v.len * params.CxS * rho / 2.0f; }
+
+    vec3 controlForce( float dt )
+    {
+        auto flist =
+            [
+                limitedForce( pos_PID( wayPoint-pos, dt ) ),
+                nearCorrect(),
+            ];
+        auto res = reduce!((r,a)=>(r+=a))( flist );
+        return limitedForce( res + vec3(0,0,9.81*params.mass) );
+    }
+
+    vec3 limitedForce( vec3 ff )
+    {
+        if( ff.xy.len > params.gflim )
+            ff = vec3( ff.xy.e * params.gflim, ff.z );
+        if( ff.z > params.vfmax ) ff.z = params.vfmax;
+        if( ff.z < params.vfmin ) ff.z = params.vfmin;
+        return ff;
+    }
+
+    vec3 nearCorrect()
+    {
+        float max_dst = 4.8;
+        float max_dst2 = pow( max_dst, 2 );
+        auto mpts = data.getPoints( pos, max_dst );
+
+        return reduce!((r,pnt)
+                {
+                    auto d = pnt - pos;
+                    auto dl = d.len;
+                    auto ve = vel.e;
+                    auto de = d.e;
+                    auto pv = dot(de,ve);
+                    auto nk = cross( cross( de, ve ), de );
+                    if( !nk ) nk = vec3(0);
+                    return r += ( -de * pow(max_dst-dl,2) * 2 + nk ) *
+                                    max(0.001 ,pv) * 4;
+                })( vec3(0,0,0), filter!(a=>(a-pos).len2 < max_dst2)(
+                        chain( map!(a=>a.xyz)(filter!(a=>!(a.w<0.5))(mpts)),
+                               map!(a=>a.pnt)(dangers) ) ) );
+    }
+
+    void calcWayPoint()
+    {
+        auto nv = data.nearestVolume(pos);
+
+        // сначала двигаемся к карте
+        if( nv.len2 > 0.001 )
+        {
+            way_point = pos + nv;
+            return;
+        }
+
+        way_point = trg_pos;
+    }
+
+    void timer( float dt ) { snapshot_timer += dt; }
+
+    void updateCamera()
+    { cam.target = (matrix.inv * vec4(lookTarget,1)).xyz; }
+
+    @property vec3 lookTarget() const
+    {
+        if( (pos - wayPoint).len2 < pow(params.min_move,2) )
+            return look_pnt;
+        else return (pos + vel + wayPoint) * 0.5;
+    }
+}
+\end{verbatim}
+
+\subsection{cl/main.cl}
+
+\nextverbatimspread{1}
+\begin{verbatim}
+constant float2 depth_correct_table[100] = {
+(float2)( 0, 0.5 ),
+.... приводится не вся таблица ....
+(float2)( 1, 1 )
+};
+
+inline float getDepthCorrect( float v )
+{
+    if( v < 0 ) return 0.5;
+    if( v > 1 ) return 1;
+    int l = 0;
+    int r = 99;
+    while( r - l > 1 )
+    {
+        int p = (l+r)/2;
+        if( depth_correct_table[p].x > v )
+            r = p;
+        else l = p;
+    }
+
+    float2 a = depth_correct_table[l];
+    float2 b = depth_correct_table[r];
+
+    float k = (v - a.x) / (b.x - a.x);
+    return a.y * (1 - k) + b.y * k;
+}
+
+inline float4 mlt( const float16 m, float4 v )
+{
+    return (float4)( dot( m.s0123, v ),
+                     dot( m.s4567, v ),
+                     dot( m.s89AB, v ),
+                     dot( m.sCDEF, v ) );
+}
+
+inline float3 project( const float16 m, float3 p )
+{
+    float4 b = mlt( m, (float4)(p,1) );
+    return b.xyz / b.w;
+}
+
+inline bool inRegionI( const uint3 size, const uint3 pnt )
+{
+    return pnt.x >= 0 && pnt.x < size.x &&
+           pnt.y >= 0 && pnt.y < size.y &&
+           pnt.z >= 0 && pnt.z < size.z;
+}
+
+inline bool inRegionF( const uint3 size, const float3 pnt )
+{
+    return pnt.x >= 0 && pnt.x < size.x &&
+           pnt.y >= 0 && pnt.y < size.y &&
+           pnt.z >= 0 && pnt.z < size.z;
+}
+
+inline size_t index( const uint3 size, const uint3 pnt )
+{ return pnt.x + pnt.y * size.x + pnt.z * size.x * size.y; }
+
+inline uint3 coordinate( const uint3 size, size_t ind )
+{
+    uint3 ret;
+    ret.z = ind / (size.x * size.y);
+    int k = ind % ( size.x * size.y );
+    ret.y = k / size.x;
+    ret.x = k % size.x;
+    return ret;
+}
+
+kernel void depthToPoint( global float* depth,
+                          const uint2 camres,
+                          const float camfar,
+                          const float16 ud_persp_inv,
+                          const float16 ud_transform,
+                          global float4* points,
+                          const uint unitid )
+{
+    int i = get_global_id(0);
+    int sz = get_global_size(0);
+
+    uint pcnt = camres.x * camres.y;
+    uint pstart = pcnt * unitid;
+
+    for( ; i < pcnt; i += sz )
+    {
+        uint ix = i % camres.x;
+        uint iy = i / camres.x;
+
+        float fx = (ix+0.5f) / camres.x * 2 - 1;
+        float fy = (iy+0.5f) / camres.y * 2 - 1;
+
+        float3 bg = project( ud_persp_inv, (float3)(fx,fy,depth[i]) );
+
+        float fp = (depth[i] < 1.0f-1e-5) ? 1.0f : 0.0f;
+
+        bg *= getDepthCorrect( fabs(bg.z/camfar) );
+        bg = project( ud_transform, bg );
+
+        points[pstart+i] = (float4)(bg,fp);
+    }
+}
+
+kernel void updateMap( global float* map, const uint4 esize,
+                       const uint unitid,
+                       const float4 ud_pos,
+                       const uint2 camres,
+                       global float4* points, const float16 tomap )
+{
+    int i = get_global_id(0);
+    int sz = get_global_size(0);
+
+    uint3 size = (uint3)(esize.xyz);
+    uint pcnt = camres.x * camres.y;
+    uint pstart = pcnt * unitid;
+
+    for( ; i < pcnt; i+=sz )
+    {
+        float4 bg = points[pstart+i];
+
+        float3 a = project( tomap, ud_pos.xyz );
+        float3 b = project( tomap, bg.xyz );
+
+        float3 dir = b - a;
+
+        float3 fstep = normalize(dir);
+        float lendir = fast_length(dir);
+
+        for( float j = 0; j < lendir; j+=0.5 )
+        {
+            float3 v = a + fstep * j;
+
+            uint mapind = index(size,(uint3)(v.x,v.y,v.z));
+            if( inRegionF(size,v) && map[mapind] != map[mapind] )
+                map[mapind] = 0;
+        }
+
+        if( inRegionF( size, b ) && bg.w > 0 )
+            map[index( size, (uint3)( b.x, b.y, b.z ) )] = 1;
+    }
+}
+
+kernel void nearfind( global float* map, const uint4 esize,
+                      const uint count, const uint8 volume,
+                      global float4* near )
+{
+    int i = get_global_id(0);
+    int sz = get_global_size(0);
+
+    uint3 msize = (uint3)(esize.xyz);
+
+    uint3 vpos = (uint3)(volume.s012);
+    uint3 vsize = (uint3)(volume.s456);
+    
+    for( ; i < count; i+=sz )
+    {
+        uint3 crd = vpos + coordinate( vsize, i );
+        if( inRegionI( msize, crd ) )
+            near[i] = (float4)( crd.x, crd.y, crd.z, map[index(msize,crd)] );
+        else
+            near[i] = (float4)(0);
+    }
+}
+\end{verbatim}
+
+\subsection{draw/worldmap.d}
+
+\nextverbatimspread{1}
+\begin{verbatim}
+module draw.worldmap;
+
+import std.stdio;
+import std.conv;
+
+import des.cl.glsimple;
+
+import des.il.region;
+
+public import draw.object.base;
+import draw.calcbuffer;
+import model.dataaccess;
+
+import des.util.helpers;
+
+enum CLSourceWithKernels = staticLoadCLSource!"cl/main.cl";
+
+class CLWorldMap : BaseDrawObject, ModelDataAccess
+{
+protected:
+
+    CalcBuffer dmap;
+
+    CalcBuffer near;
+
+    alias Vector!(8,uint) VolumeData;
+
+    mat4 mapmtr;
+    mapsize_t mres;
+
+    SimpleCLKernel[string] kernel;
+
+    struct UnitData
+    {
+        mat4 persp_inv,
+             transform;
+
+        vec3 pos;
+        float camfar;
+
+        this( in vec3 p, float cf, in mat4 pi, in mat4 tr )
+        {
+            pos = p;
+            camfar = cf;
+            persp_inv = pi;
+            transform = tr;
+        }
+    }
+
+    CalcBuffer unitdepth, unitpoints;
+
+    ivec2 unitcamres;
+    size_t unitcount;
+
+public:
+
+    this( ivec3 res, vec3 cell, CalcBuffer unitpts )
+    {
+        mapmtr = mat4.diag( cell, 1 ).setCol(3,vec4(vec2(-res.xy)*cell.xy,0,1));
+        mres = mapsize_t(res.xy*2,res.z);
+        prepareCL();
+
+        super( null, SS_WorldMap_M );
+
+        unitpoints = unitpts;
+    }
+
+    void updateMap( size_t unitid, in mat4 persp, float camfar,
+                      in mat4 transform, in float[] depth )
+    {
+        auto pos = vec3(transform.col(3)[0..3]);
+
+        updateUnitData();
+        unitdepth.setData( depth );
+
+        CLGL.acquireFromGL( dmap, unitdepth, unitpoints );
+
+        kernel["depthToPoint"].setArgs( unitdepth,
+                                        uivec2(unitcamres),
+                                        camfar,
+                                        persp.inv,
+                                        mat4( transform ),
+                                        unitpoints,
+                                        cast(uint)unitid );
+        kernel["depthToPoint"].exec( 1, [0], [1024], [32] );
+
+        kernel["updateMap"].setArgs( dmap, uivec4(mres,0),
+                                     cast(uint)unitid,
+                                     vec4( pos, camfar ),
+                                     uivec2(unitcamres),
+                                     unitpoints, matrix.inv );
+        kernel["updateMap"].exec( 1, [0], [1024], [32] );
+        CLGL.releaseToGL();
+    }
+
+    protected void updateUnitData()
+    {
+        auto cnt = unitcount * unitcamres.x * unitcamres.y;
+        if( cnt != unitpoints.elementCount )
+            unitpoints.setData( new vec4[](cnt) );
+    }
+
+    void process() { }
+
+    void setUnitCamResolution( in ivec2 cr ) { unitcamres = cr; }
+
+    void setUnitCount( size_t cnt ) { unitcount = cnt; }
+
+    vec4[] getPoints( in vec3 pos, float dst )
+    {
+        auto m = matrix.inv;
+
+        auto vol = getRegion( m, pos, dst );
+        auto count = vol.size.x * vol.size.y * vol.size.z;
+
+        if( count == 0 ) return [];
+
+        uint[8] volume = [
+            cast(uint)vol.pos.x,
+            cast(uint)vol.pos.y,
+            cast(uint)vol.pos.z,
+            0,
+            cast(uint)vol.size.x,
+            cast(uint)vol.size.y,
+            cast(uint)vol.size.z,
+            0
+        ];
+
+        near.setData( new vec4[](count) );
+
+        CLGL.acquireFromGL( dmap, near );
+
+        kernel["nearfind"].setArgs( dmap, uivec4( mres, 0 ),
+                            cast(uint)count, volume, near );
+
+        kernel["nearfind"].exec( 1, [0], [32], [8] );
+
+        CLGL.releaseToGL();
+
+        auto nearbuf = near.getData!vec4;
+
+        vec4[] ret;
+        foreach( n; nearbuf )
+            ret ~= vec4( (matrix * vec4(n.xyz,1)).xyz, n.w );
+
+        return ret;
+    }
+
+    vec3 nearestVolume( in vec3 pos )
+    {
+        auto mpos = ( matrix.inv * vec4( pos, 1 ) ).xyz;
+        foreach( i; 0 .. 3 )
+        {
+            if( mpos[i] < 0 ) mpos[i] = -mpos[i];
+            else if( mpos[i] >= mres[i] ) mpos[i] = mres[i] - mpos[i];
+            else mpos[i] = 0;
+        }
+        return (matrix * vec4(mpos,0)).xyz;
+    }
+
+    protected auto getRegion( in mat4 m, in vec3 pos, float dst )
+    {
+        auto pmin = ivec3( (m * vec4( pos - vec3(dst), 1 ) ).xyz );
+        auto size = ivec3( (m * vec4( vec3(dst) * 2, 0 ) ).xyz );
+
+        auto dvol = iRegion3( ivec3(0), mres );
+        auto cvol = iRegion3( pmin, size );
+
+        return dvol.overlap( cvol );
+    }
+
+    @property mapsize_t size() const { return mres; }
+    @property vec3 cellSize() const 
+    { return (matrix * vec4(1,1,1,0)).xyz; }
+
+    override void draw( Camera cam )
+    {
+        shader.setUniformMat( "prj", cam(this) );
+        shader.setUniform!int( "size_x", cast(int)mres.w );
+        shader.setUniform!int( "size_y", cast(int)mres.h );
+        shader.setUniform!float( "psize", 0.03 );
+
+        glEnable(GL_PROGRAM_POINT_SIZE);
+        drawArrays( DrawMode.POINTS );
+    }
+
+    override @property mat4 matrix() const
+    { return super.matrix * mapmtr; }
+
+protected:
+
+    void prepareCL() { kernel = CLGL.build( CLSourceWithKernels ); }
+
+    override void selfDestroy()
+    {
+        CLGL.systemDestroy();
+        super.selfDestroy();
+    }
+
+    override void prepareBuffers()
+    {
+        auto cnt = mres.w * mres.h * mres.d;
+
+        dmap = registerChildEMM( new CalcBuffer() );
+        dmap.elementCountCallback = &setDrawCount;
+
+        auto loc = shader.getAttribLocation( "data" );
+        setAttribPointer( dmap, loc, 1, GLType.FLOAT );
+        dmap.setData( new float[](cnt) );
+
+        unitdepth = registerChildEMM( new CalcBuffer() );
+
+        near = registerChildEMM( new CalcBuffer() );
+    }
+}
+\end{verbatim}
