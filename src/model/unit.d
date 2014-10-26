@@ -76,6 +76,10 @@ protected:
     fSeg[] dangers;
     vec4[] ldpoints;
 
+    vec3[] track;
+    float min_track_dist = 0.2;
+    size_t max_track_cnt = 4096;
+
     PID!vec3 pos_PID;
 
     SimpleCamera cam;
@@ -159,9 +163,12 @@ public:
         calcWayPoint();
         phcrd += rpart( t, dt ) * dt;
         timer( dt );
+        trackAppend();
     }
 
     void appendDanger( in fSeg[] d... ) { dangers ~= d; }
+
+    @property vec3[] currentTrack() { return track; }
 
     @property vec4[] lastSnapshot() { return ldpoints; }
 
@@ -175,6 +182,15 @@ public:
     }
 
 protected:
+
+    void trackAppend()
+    {
+        if( track.length && (track[$-1] - pos).len2 < pow(min_track_dist,2) ) return;
+
+        if( track.length >= max_track_cnt )
+            track = track[1..$] ~ pos;
+        else track ~= pos;
+    }
 
     void prepareCamera()
     {
@@ -235,7 +251,8 @@ protected:
                     auto pv = dot(de,ve);
                     auto nk = cross( cross( de, ve ), de );
                     if( !nk ) nk = vec3(0);
-                    return r += ( ( -de * pow(max_dst-dl,2) * 2 + nk ) * ( max(0,dot(de,ve)) + 0.001 ) ) * 4;
+                    return r += ( -de * pow(max_dst-dl,2) * 2 + nk ) * max(0.001,pv) * 4;
+                    //return r += ( -de * pow(max_dst-dl,2) * 2 * max(0,pv) + nk * max(0.1,pv) ) * 4;
                 })( vec3(0,0,0), filter!(a=>(a-pos).len2 < max_dst2)(
                         chain( map!(a=>a.xyz)(filter!(a=>!(a.w<0.5))(mpts)),
                                map!(a=>a.pnt)(dangers) ) ) );

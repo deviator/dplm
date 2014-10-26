@@ -11,6 +11,7 @@ import draw.camera;
 import draw.object.world;
 import draw.object.point;
 import draw.object.plane;
+import draw.object.line;
 import draw.worldmap;
 
 import des.gl.base.render;
@@ -27,6 +28,7 @@ private:
     CLWorldMap worldmap;
     DrawUnit draw_unit;
     CalcPoint ddot;
+    Line track;
 
     GLRenderToTex render;
 
@@ -64,6 +66,13 @@ public:
         world = new World( vec2(200,200), 50 );
         render = new GLRenderToTex;
         draw_unit = new DrawUnit(null);
+        track = new Line;
+
+        ddot.color = col4(0,1,0,1);
+        ddot.size(2);
+
+        track.width(2);
+        track.color = col4(0,1,0,1);
 
         tm = new Timer;
     }
@@ -95,6 +104,9 @@ public:
 
     void draw()
     {
+        glClearColor(1,1,1,1);
+        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
         if( draw_world_in_view )
             world.draw( cam );
 
@@ -115,9 +127,10 @@ public:
             draw_unit.setCoordinate( u.target, u.rot );
             draw_unit.draw( cam );
 
-            ddot.color = col4(0,1,0,1);
-            ddot.size(2);
             ddot.draw( cam );
+
+            track.set( u.currentTrack );
+            track.draw( cam );
         }
 
         worldmap.draw( cam );

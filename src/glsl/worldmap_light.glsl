@@ -38,7 +38,7 @@ void main(void)
     else
     {
         // no info
-        v_color = vec4( 1, 1, 0, 0.2 );
+        v_color = vec4( 0, 0, 1, 0.2 );
         gl_PointSize = 4;
     }
 }
