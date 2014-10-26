@@ -12,10 +12,10 @@ void info(Args...)( Args args )
 
 void main()
 {
-    log_trace( "app start" );
+    log_info( "app start" );
     GLApp app = new GLApp;
     app.addWindow({ return new MainWindow( "diploma simulator", ivec2(800,600) ); });
     app.run();
     app.destroy();
-    log_trace( "app finish" );
+    log_info( "app finish" );
 }

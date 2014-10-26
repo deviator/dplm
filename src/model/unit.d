@@ -150,8 +150,8 @@ public:
         bool hasMinMoveFromLastSnapshot() const
         { return (last_snapshot_pos - pos).len2 > pow( params.min_move, 2 ); }
 
-        ivec2 snapshotResolution() const
-        { return params.cam.res; }
+        uivec2 snapshotResolution() const
+        { return uivec2( params.cam.res ); }
     }
 
     void step( float t, float dt )
@@ -164,13 +164,6 @@ public:
     void appendDanger( in fSeg[] d... ) { dangers ~= d; }
 
     @property vec4[] lastSnapshot() { return ldpoints; }
-
-    @property vec4[] lastWall()
-    {
-        vec4[] ret;
-        foreach( w; wall ) ret ~= vec4( w, 1 );
-        return ret;
-    }
 
     void addSnapshot( in Image!2 img )
     {
@@ -261,117 +254,6 @@ protected:
 
         way_point = trg_pos;
     }
-
-    vec3[] wall;
-
-    vec3 processMap( vec3 dir )
-    {
-        if( dir.len2 == 0 ) return dir;
-
-        float max_dst = 10;
-        float dang_rad = max_dst / 2;
-
-        auto trg = pos + dir.e * max_dst * max_dst;
-
-        updateWallAndCalcNear( trg, max_dst );
-
-        if( !wall.length ) return trg - pos;
-
-        auto wall_c = mean( wall );
-        float max_wall_dst = reduce!max( dang_rad, map!(a=>(wall_c-a).len)( wall ) );
-
-        //auto ntrg = calcSphericBypass( pos, trg, wall_c, max_wall_dst + dang_rad );
-        //return ntrg - pos;
-
-        return calcWallRepulsion( dir, dang_rad );
-    }
-
-    vec3 calcWallRepulsion( vec3 dir, float dist )
-    {
-        vec3 rp;
-        size_t k = 0;
-        foreach( w; wall )
-        {
-            auto dst = pos - w;
-            if( dst.len < dist )
-            {
-                rp += dst.e * ( dist - dst.len );
-                k++;
-            }
-        }
-        if( k == 0 ) return dir;
-        return rp / k;
-    }
-
-    vec3 updateWallAndCalcNear( vec3 trg, float max_dst )
-    {
-        float dang_dst = max_dst / 2;
-
-        auto mpts = ldpoints ~ data.getPoints( pos, max_dst );
-
-        trg = calcNear( mpts, trg, dang_dst );
-
-        wall.length = 0;
-        appendWall( mpts, trg, dang_dst );
-        appendWall( mpts, pos, dang_dst );
-
-        return trg;
-    }
-
-    vec3 calcNear( in vec4[] mpts, vec3 trg, float dist )
-    {
-        foreach( ep; mpts )
-        {
-            auto way = fSeg.fromPoints( pos, trg );
-
-            auto val = ep.w;
-            auto p = ep.xyz;
-
-            if( val > 0 || val is float.nan )
-            {
-                auto alt = way.altitude(p);
-                if( alt.dir.len < dist && (alt.pnt-pos).len <= way.dir.len )
-                    trg = alt.pnt;
-            }
-        }
-        return trg;
-    }
-
-    void appendWall( in vec4[] mpts, vec3 trg, float dist )
-    {
-        foreach( ep; mpts )
-        {
-            auto val = ep.w;
-            auto p = ep.xyz;
-
-            if( ( val > 0 || val is float.nan ) && (trg-p).len <= dist )
-                wall ~= p;
-        }
-    }
-
-    vec3 calcSphericBypass( vec3 from, vec3 to, vec3 center, float R )
-    {
-        auto way = fSeg.fromPoints( from, to );
-        auto rd = center - from;
-        auto A = rd.len;
-        auto rde = rd / A;
-
-        if( way.altitude(center).dir.len > R ) return to;
-        if( A < R ) return from - rde * (R - A);
-
-        auto rv = cross( rde, -way.altitude(center).dir.e ).e;
-        if( !rv ) rv = cross( rde, vec3(0,0,1) ).e;
-
-        auto up = cross( rv, rde ).e;
-
-        auto kx = -rde * R * R/A;
-        auto ky = up * R * sin( acos(R/A) );
-
-        return from + (center + kx + ky);
-    }
-
-    static auto mean( in vec3[] arr )
-    { return (reduce!((r,a)=>r+=a)(arr)) / arr.length; }
 
     void timer( float dt ) { snapshot_timer += dt; }
 

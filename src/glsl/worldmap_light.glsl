@@ -39,7 +39,7 @@ void main(void)
     {
         // no info
         v_color = vec4( 1, 1, 0, 0.2 );
-        gl_PointSize = 1;
+        gl_PointSize = 4;
     }
 }
 
