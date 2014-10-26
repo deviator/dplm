@@ -34,8 +34,8 @@ protected:
 
     void createData()
     {
-        cam  = new MCamera;
-        ctrl = new Control( cam );
+        cam  = newEMM!MCamera;
+        ctrl = newEMM!Control( cam );
     }
 
     void createEventProcessors()

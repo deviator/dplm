@@ -7,6 +7,7 @@ import std.algorithm;
 
 import des.math.linear;
 import des.math.basic;
+import des.util.logger;
 
 import des.il;
 

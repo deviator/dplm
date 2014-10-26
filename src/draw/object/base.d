@@ -5,6 +5,7 @@ public import des.math.linear;
 public import draw.object.shader;
 public import draw.object.util;
 
+import des.util.logger;
 import std.stdio;
 
 interface DrawNode : Node
@@ -91,6 +92,7 @@ public:
 
     this( Node p, in ShaderSource sh )
     {
+        logger.info( "base draw object" );
         super( sh );
         par = p;
         prepareBuffers();
@@ -100,19 +102,35 @@ public:
     {
         col4 color() const { return clr; }
         col4 color( in col4 n ) 
-        { clr = n; return clr; }
+        {
+            clr = n;
+            logger.trace( "%s", n );
+            return clr;
+        }
 
         mat4 matrix() const { return mtr; }
         mat4 matrix( in mat4 m )
-        { mtr = m; return mtr; }
+        {
+            logger.trace( "%s", m );
+            mtr = m;
+            return mtr;
+        }
 
         const(Node) parent() const { return par; }
 
         bool needDraw() const { return draw_flag; }
-        void needDraw( bool nd ) { draw_flag = nd; }
+        void needDraw( bool nd )
+        {
+            logger.Debug( "%s", nd );
+            draw_flag = nd;
+        }
     }
 
-    void setParent( Node p ) { par = p; }
+    void setParent( Node p )
+    {
+        logger.trace("%s",typeid(p));
+        par = p;
+    }
 
     abstract void draw( Camera cam );
 }

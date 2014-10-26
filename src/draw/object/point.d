@@ -2,6 +2,7 @@ module draw.object.point;
 
 public import draw.object.base;
 import draw.calcbuffer;
+import des.util.logger;
 
 class Point : BaseDrawObject
 {
@@ -70,6 +71,8 @@ public:
 
     this( Node p )
     {
+        logger = new InstanceFullLogger(this, "ddots");
+
         super( p, SS_DepthPoint );
         clr = col4( 0,1,0, 1 );
         warn_if_empty = false;

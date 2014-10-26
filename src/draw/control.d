@@ -17,11 +17,15 @@ import draw.worldmap;
 import des.gl.base.render;
 
 import des.il;
+import des.util.logger;
+import des.util.emm;
 
 import std.stdio;
 
-class Control
+class Control : ExternalMemoryManager
 {
+    mixin ParentEMM;
+
 private:
     Model mdl;
     World world;
@@ -49,24 +53,26 @@ public:
 
     this( MCamera c )
     {
+        log_trace( "create control start" );
+
         cam = c;
 
-        ddot = new CalcPoint(null);
+        ddot = newEMM!CalcPoint(null);
 
-        worldmap = new CLWorldMap( ivec3(200,200,50), vec3(1), ddot.data );
+        worldmap = newEMM!CLWorldMap( ivec3(200,200,50), vec3(1), ddot.data );
         worldmap.needDraw = false;
 
-        mdl = new Model( worldmap );
+        mdl = newEMM!Model( worldmap );
 
         auto unit_count = 5;
 
         mdl.appendUnits( unit_count );
         worldmap.setUnitCount( unit_count );
 
-        world = new World( vec2(200,200), 50 );
-        render = new GLRenderToTex;
-        draw_unit = new DrawUnit(null);
-        track = new Line;
+        world = newEMM!World( vec2(200,200), 50 );
+        render = newEMM!GLRenderToTex;
+        draw_unit = newEMM!DrawUnit(null);
+        track = newEMM!Line;
 
         ddot.color = col4(0,1,0,1);
         ddot.size(2);
@@ -74,7 +80,9 @@ public:
         track.width(2);
         track.color = col4(0,1,0,1);
 
-        tm = new Timer;
+        tm = newEMM!Timer;
+
+        log_trace( "create control complite" );
     }
 
     void idle()

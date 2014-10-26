@@ -178,7 +178,7 @@ public:
         shader.setUniformMat( "prj", cam(this) );
         shader.setUniform!int( "size_x", cast(int)mres.w );
         shader.setUniform!int( "size_y", cast(int)mres.h );
-        shader.setUniform!float( "psize", 0.03 );
+        //shader.setUniform!float( "psize", 0.03 );
 
         glEnable(GL_PROGRAM_POINT_SIZE);
         drawArrays( DrawMode.POINTS );
