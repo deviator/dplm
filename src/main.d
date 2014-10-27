@@ -4,12 +4,6 @@ import draw.window;
 
 import des.util;
 
-void info(Args...)( Args args )
-{
-    stdout.writefln( args );
-    stdout.flush();
-}
-
 void main()
 {
     log_info( "app start" );
