@@ -1,19 +1,13 @@
 {
 	"name": "dplsim",
-    "version": "~master",
     "targetPath": "bin",
     "targetType": "executable",
-    "importPaths": [ "DerelictCL/source", "descl/import", "derelict/import", "descore/import", "des/import" ],
-    "sourcePaths": [ "DerelictCL/source", "descl/import", "derelict/import", "descore/import", "des/import", "src" ],
-    "libs-posix": [ "dl" ],
-    "lflags": [ "-L./derelict/lib/dmd" ],
+    "sourcePaths": [ "src" ],
     "dflags-dmd": [ "-Jsrc" ],
-    "libs":
-    [
-        "DerelictUtil",
-        "DerelictFT",
-        "DerelictGL3",
-        "DerelictIL",
-        "DerelictSDL2"
-    ]
+    "dependencies":
+    {
+        "des": ">=1.1.1",
+        "descore": ">=1.0.9",
+        "descl": ">=0.2.0"
+    }
 }
