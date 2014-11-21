@@ -101,7 +101,10 @@ public:
                 if( u.readyToSnapshot )
                 {
                     render( u.snapshotResolution,
-                    { world.draw( u.camera ); });
+                    {
+                        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+                        world.draw( u.camera );
+                    });
                     render.depth.getImage( buf_depth );
                     u.addSnapshot( buf_depth );
                 }
