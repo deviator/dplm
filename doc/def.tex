@@ -8,21 +8,30 @@
 \usepackage{amsmath, amsfonts, amssymb}
 \usepackage{geometry}
 \usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{array}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usepackage{color}
+\usepackage{multirow}
+
 \geometry{top=2cm}
 \geometry{left=3cm}
 \geometry{right=2cm}
 \geometry{bottom=2cm}
-\usepackage{graphicx}
-\usepackage{epstopdf}
-\usepackage{tikz}
-\usepackage{tikz-3dplot}
-\usepackage{color}
 
 \usetikzlibrary{arrows}
 \usetikzlibrary{calc}
 
 \renewcommand{\vec}{\overline}
 \renewcommand{\phi}{\varphi}
+\renewcommand{\baselinestretch}{1.5}
+\def\lb{\linebreak}
+%\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\let\tlb\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\tlb\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\tlb\\\arraybackslash\hspace{0pt}}m{#1}}
 
 % список с корректированным межстрочным интервалом
 \newenvironment{mintemize}%
