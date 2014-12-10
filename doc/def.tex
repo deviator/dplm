@@ -15,6 +15,8 @@
 \usepackage{tikz-3dplot}
 \usepackage{color}
 \usepackage{multirow}
+\usepackage{lscape}
+\usepackage{wrapfig}
 
 \geometry{top=2cm}
 \geometry{left=3cm}
@@ -23,6 +25,7 @@
 
 \usetikzlibrary{arrows}
 \usetikzlibrary{calc}
+\usetikzlibrary{positioning}
 
 \renewcommand{\vec}{\overline}
 \renewcommand{\phi}{\varphi}
@@ -45,6 +48,16 @@
     \vspace{-0.5em}
 }
 
+\newenvironment{tabpage}[1]%
+{
+    \begin{minipage}{#1} \baselineskip=1.2em
+    \vspace{0.3em}
+}
+{
+    \vspace{0.3em}
+    \end{minipage}
+}
+
 \graphicspath{{pics/}}
 
 % назначение межстрочного интервала в verbatim
@@ -59,3 +72,4 @@
 % ссылки на новой странице с 1
 \usepackage{perpage}
 \MakePerPage{footnote}
+

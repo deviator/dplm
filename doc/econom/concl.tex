@@ -1,0 +1,62 @@
+\subsection{Заключение}
+
+В разделе были рассмотрены планирование работ, а также оценка
+себестоимости разрабатываемого программно-математического обеспечения.
+Как можно наблюдать по сетевому графику, продолжительность работ
+не выходит за рамки периода выполнения дипломной работы, и все работы
+могут быть выполнены одним разработчиком в установленный срок.
+
+Для наглядного представления приведем круговую диаграмму,
+отображающую различные виды затрат.
+
+\vspace{3em}
+
+% зп = 0.6644 -- 234.184
+% страховые взносы = 0.093 -- 33.48
+% арендная плата = 0.198 -- 71.28
+% амортизация = 0.0171 --  6.1596
+% накладные расходы = 0.0278 -- 10.08
+
+{
+\def\zppart{234.184}
+\def\svpart{33.48}
+\def\appart{71.28}
+\def\aopart{6.1596}
+\def\r{3}
+\def\offset{4}
+\def\rs{0.3}
+
+\begin{tikzpicture}
+\filldraw[fill=red!30] (0,0) -- +(0:\r) arc (0:\zppart:\r) -- (0,0);
+\filldraw[fill=green!30] (0,0) -- +(\zppart:\r) arc (\zppart:{\zppart+\svpart}:\r) -- (0,0);
+\filldraw[fill=blue!30] (0,0) -- +({\zppart+\svpart}:\r) arc ({\zppart+\svpart}:{\zppart+\svpart+\appart}:\r) -- (0,0);
+\filldraw[fill=magenta!30!yellow] (0,0) -- +({\zppart+\svpart+\appart}:\r) arc ({\zppart+\svpart+\appart}:{\zppart+\svpart+\appart+\aopart}:\r) -- (0,0);
+\filldraw[fill=cyan!30] (0,0) -- +({\zppart+\svpart+\appart+\aopart}:\r) arc ({\zppart+\svpart+\appart+\aopart}:360:\r) -- (0,0);
+
+\filldraw[fill=red!30] (\offset,{\r*0.8}) +(0,0) rectangle +(\rs,\rs);
+\node[right] at ({\offset+\rs},{\r*0.8+\rs*0.5}) {$\text{заработная плата}$};
+
+\filldraw[fill=green!30] (\offset,{\r*0.6}) +(0,0) rectangle +(\rs,\rs);
+\node[right] at ({\offset+\rs},{\r*0.6+\rs*0.5}) {$\text{страховые взносы}$};
+
+\filldraw[fill=blue!30] (\offset,{\r*0.4}) +(0,0) rectangle +(\rs,\rs);
+\node[right] at ({\offset+\rs},{\r*0.4+\rs*0.5}) {$\text{арендная плата}$};
+
+\filldraw[fill=magenta!30!yellow] (\offset,{\r*0.2}) +(0,0) rectangle +(\rs,\rs);
+\node[right] at ({\offset+\rs},{\r*0.2+\rs*0.5}) {$\text{амортизация оборудования}$};
+
+\filldraw[fill=cyan!30] (\offset,{\r*0.0}) +(0,0) rectangle +(\rs,\rs);
+\node[right] at ({\offset+\rs},{\r*0.0+\rs*0.5}) {$\text{накладные расходы}$};
+\end{tikzpicture}
+}
+
+\vspace{2em}
+
+Как можно наблюдать, основная часть расходов связана с заработной и
+арендной платами. Для того чтобы сократить эти расходы, можно нанять
+сотрудника с более низкой почасовой ставкой, арендовать помещение
+меньшей площади.
+
+Так как рассматриваемая работа является научно-исследовательской,
+она не предполагает прямой прибыли. Поэтому этап ценообразования не был
+рассмотрен, исследование рынка не проводилось.

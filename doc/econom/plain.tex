@@ -1,0 +1,138 @@
+\subsection{Организационная часть}
+
+{
+\begin{wrapfigure}{r}{0.25\linewidth}
+\begin{flushright}
+\begin{tikzpicture}[scale=0.65,->,>=stealth',shorten >=0pt,auto,node distance=2.5cm,
+  thick,every node/.style={scale=0.65},
+  mnode/.style={circle,minimum size=1cm,fill=blue!20,draw,font=\sffamily\bfseries},
+  hnode/.style={circle,minimum size=0.5cm,fill=white,draw},
+  mainp/.style={line width=2pt}]
+
+\node[mnode,fill=white] (0) {start};
+\node[mnode] (1) [below of=0] {1}; % постановка задачи 2
+\node[mnode] (2) [below of=1] {2}; % построение архитектуры 3
+\node[mnode] (3) [below of=2] {3}; % распределение работы 1
+\node[mnode] (4) [below left of=1] {4}; % разработка ММ МБПЛА 1
+\node[mnode] (5) [below of=4] {5}; % перечень обарудование 1
+\node[mnode] (6) [below of=3] {6}; % графическая часть 7
+\node[hnode] (p7) [below left of=3] {};
+\node[mnode] (7) [below of=p7] {7}; % мат часть 4
+\node[hnode] (p8) [below right of=7] {};
+\node[mnode] (8) [below of=p8] {8}; % интеграция 2
+\node[mnode] (9) [below of=8] {9}; % тест и дебаг 4
+\node[mnode] (10) [below right=1.5cm and 1.5cm of 1] {10}; % постр алг упр 8
+\node[hnode] (p11) [below of=9] {};
+\node[mnode] (11) [below of=p11] {11}; % реализ в симуляторе 2
+\node[mnode] (12) [below of=11] {12}; % тест и дебаг в сборе 4
+\node[mnode] (13) [below of=12] {13}; % эксперименты 2
+\node[mnode] (14) [below right of=6] {14}; % док граф 2
+\node[mnode] (16) [below right=1.5cm and 1.5cm of p11] {16}; % док алг 2
+\node[mnode,fill=white] (final) [below of=13] {final}; % док алг 2
+\node[mnode] (15) [above left of=final] {15}; % док мат 2
+
+\path[every node/.style={right,font=\sffamily\small}]
+(0) edge[mainp] node {2} (1)
+(1) edge[mainp] node {3} (2)
+(2) edge[mainp] node {1} (3)
+(1) edge node {1} (4)
+(4) edge node {1} (5)
+(3) edge[mainp] node {7} (6)
+(3) edge (p7)
+(5) edge (p7)
+(p7) edge node {4} (7)
+(7) edge (p8)
+(6) edge[mainp] (p8)
+(p8) edge[mainp] node {2} (8)
+(8) edge[mainp] node {4} (9)
+(1) edge node {8} (10)
+(9) edge[mainp] (p11)
+(p11) edge[mainp] node {2} (11)
+(11) edge[mainp] node {4} (12)
+(12) edge[mainp] node {2} (13)
+(p11) edge node[right=0.2cm] {2} (16)
+(6) edge node {2} (14)
+(7) edge node {2} (15)
+(13) edge[mainp] (final)
+(15) edge (final)
+;
+
+\draw (10) -- ($(p11)+(3,3)$) -> (p11)
+(14) -- ($(final)+(1.75,1.75)$) -> (final)
+(16) -- ($(final)+(2.85,2.85)$) -> (final);
+
+\end{tikzpicture}
+\end{flushright}
+\end{wrapfigure}
+
+Организация работы над проектом состоит из описания необходимых работ
+и распределии ресурсов на их выполнение. Для оптимизации процесса
+построим сетевой график выполенния работ.
+
+Ниже представлены работы, необходимые для выполнения проекта.
+Справа сетевой график работ.
+
+\vspace{1em}
+
+\newcounter{taskNoCounter}
+\def\taskNo{\addtocounter{taskNoCounter}{1}\arabic{taskNoCounter}}
+
+\newcommand{\ttelem}[2]%
+{
+    \hline
+    \taskNo & \begin{tabpage}{8.5cm}
+    #1
+    \end{tabpage} &#2 \\
+}
+
+\begin{flushleft}
+\begin{tabular}{|c|c|c|}
+
+\hline
+№ & Работа по проекту & ч.д. \\
+
+\ttelem{Постановка задачи, конкретизация критериев работы алгоритма}{2}
+
+\ttelem{Построение архитектуры симулятора}{3}
+
+\ttelem{Распределение работы по написанию симулятора}{1}
+
+\ttelem{Разработка математической модели МБПЛА}{1}
+
+\ttelem{Проработка перечня и параметров необходимого
+для юнита оборудования, которое будет имулироваться}{1}
+
+\ttelem{Написание графической части симулятора}{7}
+
+\ttelem{Написание математической части симулятора}{4}
+
+\ttelem{Интеграция частей симулятора}{2}
+
+\ttelem{Тестирование и отладка симулятора}{4}
+
+\ttelem{Построение алгоритма управления \lb МБПЛА}{8}
+
+\ttelem{Реализация алгоритма управления МБПЛА в симуляторе}{2}
+
+\ttelem{Тестирование и отладка системы в сборе}{4}
+
+\ttelem{Экспериметы и анализ результатов}{2}
+
+\ttelem{Написание документации по графической части симулятора}{2}
+
+\ttelem{Написание документации по математической части симулятора}{2}
+
+\ttelem{Написание документации по алгоритму управления}{2}
+
+\hline
+\end{tabular}
+\end{flushleft}
+}
+
+\newpage
+
+Критический путь выделен толсными стрелками
+и составляет 27 человеко-дней. Общая трудоёмкость составляет 47 человеко-дней.
+Принимая во внимание структуру сетевого графика, можно отметить,
+что для реализации проекта необходимо 3 инженера-программиста.
+
