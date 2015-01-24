@@ -22,7 +22,7 @@ interface DrawNode : SpaceNode
     }
 }
 
-class DrawNodeList : DrawNode
+class DrawNodeList : DesObject, DrawNode
 {
     mixin SpaceNodeHelper;
 protected:

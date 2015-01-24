@@ -52,6 +52,12 @@ public:
             unit.process( time, cfg.h );
     }
 
+    void randomizeTargets()
+    {
+        foreach( unit; units )
+            unit.target = vec3( rndPos(200).xy, uniform(1.0f, 20.0f) );
+    }
+
 protected:
 
     void createUnits()
@@ -86,24 +92,25 @@ protected:
 
     void processDangerUnits()
     {
-        //auto cnt = units.length;
-        //foreach( i; 0 .. cnt )
-        //    foreach( j; 0 .. cnt )
-        //    {
-        //        if( i == j ) continue;
-        //        auto a = units[i];
-        //        auto b = units[j];
-        //        if( (a.state.pos - b.state.pos).len2 < danger_dist * danger_dist )
-        //        {
-        //            a.appendNear( fRay( b.state.pos, b.state.vel ) );
-        //            b.appendNear( fRay( a.state.pos, a.state.vel ) );
-        //        }
-        //    }
+        auto cnt = units.length;
+        float danger_dist = 5;
+        foreach( i; 0 .. cnt )
+            foreach( j; 0 .. cnt )
+            {
+                if( i == j ) continue;
+                auto a = units[i];
+                auto b = units[j];
+                if( (a.state.pos - b.state.pos).len2 < danger_dist * danger_dist )
+                {
+                    a.appendNear( fRay( b.state.pos, b.state.vel ) );
+                    b.appendNear( fRay( a.state.pos, a.state.vel ) );
+                }
+            }
     }
 
     Unit createDefaultUnit()
     {
-        auto s = vec3(0,0,80) + rndPos(1);
+        auto s = vec3(0,0,80) + rndPos(5);
         vec3[3] pid = [ vec3(3), vec3(0), vec3(1) ];
         auto buf = newEMM!Unit( UnitState( s, vec3(0) ), unit_params, pid );
         buf.target = s;
@@ -112,7 +119,7 @@ protected:
 
     vec3 rndPos( float dst )
     {
-        auto uf() { return uniform(-dst,dst); }
-        return vec3( uf, uf, uf*0.5 );
+        auto uf() @property { return uniform(-dst,dst); }
+        return vec3( uf, uf, uf );
     }
 }

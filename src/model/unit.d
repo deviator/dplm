@@ -139,7 +139,7 @@ struct UnitTrace
     ///
     void append( in vec3 p )
     {
-        if( data.length != 0 && (data[$-1] - p).len2 > min_dist * min_dist ) return;
+        if( data.length != 0 && (data[$-1] - p).len2 < min_dist * min_dist ) return;
 
         if( data.length < max_count ) data ~= p;
         else data = data[1..$] ~ p;
@@ -189,6 +189,7 @@ protected:
     override void logic( float t, float dt )
     {
         calcWayPoint();
+        cam.target = vec3( (matrix.inv * vec4(way_point,1)).xyz );
     }
 
     override void postProc()

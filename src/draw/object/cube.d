@@ -2,6 +2,8 @@ module draw.object.cube;
 
 public import draw.object.base;
 
+import des.util.stdext.algorithm;
+
 class Cube : BaseShadeObject
 {
 protected:
@@ -96,7 +98,7 @@ public:
 
     this( SpaceNode p ) { super(p); }
 
-    void addCube( vec3 offset, vec3 size )
+    void addCube( vec3 offset, vec3 size, quat q )
     {
         auto p1 = offset + size * vec3(0,0,1);
         auto p2 = offset + size * vec3(0,1,1);
@@ -128,7 +130,7 @@ public:
             p7, p6, p2
             ];
 
-        full_pos_data ~= pos_data;
+        full_pos_data ~= amap!(a=>q.rot(a-offset)+offset)( pos_data );
         pos.setData( full_pos_data, GLBuffer.Usage.DYNAMIC_DRAW );
 
         if( norm !is null )

@@ -122,6 +122,7 @@ public:
                 case ev.Scan.D: ddot.needDraw = !ddot.needDraw; break;
                 case ev.Scan.M: worldmap.needDraw = !worldmap.needDraw; break;
                 case ev.Scan.G: world.regen( vec2(200,200), 100 ); break;
+                case ev.Scan.R: mdl.randomizeTargets(); break;
                 case ev.Scan.NUMBER_1: cam.target = buf_target; break;
                 case ev.Scan.NUMBER_2: watch_copter = !watch_copter; break;
                 default: cam.keyReaction( ev );
