@@ -11,272 +11,236 @@ import des.space;
 
 import des.il;
 
+import des.util.arch;
+
 import model.pid;
-import model.util;
-import model.dataaccess;
+import model.camera;
 
 import std.stdio;
 
-struct PhVec
+/// phase vector (has basic math op)
+struct UnitState
 {
-    vec3 pos, vel;
+    vec3 pos, vel; ///
     mixin( BasicMathOp!"pos vel" );
 }
 
+///
 struct UnitParams
 {
-    float gflim;
-    float vfmin;
-    float vfmax;
+    float hflim; /// horisontal force limit
+    float vfmin; /// vertical minimal force
+    float vfmax; /// vertical maximum force
 
-    float CxS;
+    float CxS; /// for drag force
     float mass;
 
-    Tuple!( float, "dst", float, "vel" ) ready;
-    float min_move;
-
-    vec3[3] pid;
-
-    Tuple!(float,"fov",
-           float,"min",
-           float,"max",
-           ivec2,"res",
-           float,"rate") cam;
-
-    @property float camRatio() const
-    { return cast(float)( cam.res.x ) / cam.res.y; }
-
-    float maxResultDist( float cell ) const
-    {
-        auto maxAngleResolution = (cam.fov / 180.0f * PI) / cam.res.y;
-        return abs( cell / tan(maxAngleResolution) );
-    }
+    UnitCameraParams cam; ///
 }
 
-class Unit : SpaceNode
+/++ base unit class
+for set/get lookAt point use `camera.target`
+ +/
+class BaseUnit : DesObject, SpaceNode
 {
+    mixin DES;
     mixin SpaceNodeHelper;
 
 protected:
 
-    static size_t unit_count = 0;
-    size_t id;
-
-    PhVec phcrd;
-    UnitParams params;
-
-    float snapshot_timer = 0;
-
-    vec3 trg_pos;
-
-    vec3 way_point;
-
-    vec3 last_snapshot_pos;
-    vec3 look_pnt;
-
-    fRay[] dangers;
-    vec4[] ldpoints;
-
-    vec3[] track;
-    float min_track_dist = 0.2;
-    size_t max_track_cnt = 4096;
-
-    PID!vec3 pos_PID;
-
-    SimpleCamera cam;
-
-    UnitDataAccess data;
-    bool ready_to_snapshot = true;
+    UnitState ph;
+    UnitParams prms;
+    UnitCamera cam;
 
 public:
 
-    this( PhVec initial, UnitParams prms, UnitDataAccess uda )
-    in{ assert( uda !is null ); } body
+    ///
+    this( in UnitState initial, in UnitParams prms )
     {
-        id = unit_count++;
+        ph = initial;
+        this.prms = prms;
 
-        phcrd = initial;
-        params = prms;
-
-        trg_pos = initial.pos;
-
-        pos_PID = new PID!vec3( prms.pid[0], prms.pid[1], prms.pid[2] );
-
-        data = uda;
-
-        cam = new SimpleCamera(this);
-        prepareCamera();
+        cam = new UnitCamera( this, prms.cam );
     }
 
     @property
     {
-        const
-        {
-            vec3 pos() { return phcrd.pos; }
-            vec3 vel() { return phcrd.vel; }
-        }
-        
-        void target( in vec3 tp )
-        {
-            trg_pos = tp;
-            ready_to_snapshot = true;
-        }
+        ///
+        UnitState state() const { return ph; }
+        ///
+        UnitParams params() const { return prms; }
 
-        vec3 target() const { return trg_pos; }
-        vec3 wayPoint() const { return way_point; }
-
-        void lookPnt( in vec3 lp ) { look_pnt = lp; }
-        vec3 lookPnt() const { return look_pnt; }
-
-        Camera camera()
-        {
-            updateCamera();
-            return cam;
-        }
-
-        bool nearTarget() const
-        {
-            return (wayPoint - pos).len2 < pow( params.ready.dst, 2 ) &&
-                vel.len2 < pow( params.ready.vel, 2 );
-        }
-
-        bool readyToSnapshot() const
-        { return snapshotTimeout && hasMinMoveFromLastSnapshot; }
-
-        bool snapshotTimeout() const
-        { return snapshot_timer > 1.0f / params.cam.rate; }
-
-        bool hasMinMoveFromLastSnapshot() const
-        { return (last_snapshot_pos - pos).len2 > pow( params.min_move, 2 ); }
-
-        uivec2 snapshotResolution() const
-        { return uivec2( params.cam.res ); }
+        ///
+        UnitCamera camera() { return cam; }
     }
 
-    void step( float t, float dt )
+    ///
+    final void process( float t, float dt )
     {
-        calcWayPoint();
-        phcrd += rpart( t, dt ) * dt;
-        timer( dt );
-        self_mtr.setCol( 3, vec4(pos,1) );
-        trackAppend();
-    }
-
-    void appendDanger( in fRay[] d... ) { dangers ~= d; }
-
-    @property vec3[] currentTrack() { return track; }
-
-    @property vec4[] lastSnapshot() { return ldpoints; }
-
-    void addSnapshot( in Image!2 img )
-    {
-        snapshot_timer = 0;
-        last_snapshot_pos = pos;
-
-        data.updateMap( id, cam.projection.matrix,
-                cam.far, matrix * cam.transform.matrix, img.mapAs!float );
+        logic( t, dt );
+        ph += rpart( t, dt ) * dt;
+        self_mtr.setCol( 3, vec4(ph.pos,1) );
+        postProc();
     }
 
 protected:
 
-    void trackAppend()
+    ///
+    abstract void logic( float t, float dt );
+
+    /// calc control force 
+    abstract vec3 controlForce( float t, float dt );
+
+    final UnitState rpart( float t, float dt )
     {
-        if( track.length && (track[$-1] - pos).len2 < pow(min_track_dist,2) ) return;
+        auto f = dragForce() + limitedForce( controlForce( t, dt ) );
 
-        if( track.length >= max_track_cnt )
-            track = track[1..$] ~ pos;
-        else track ~= pos;
-    }
-
-    void prepareCamera()
-    {
-        cam.fov   = params.cam.fov;
-        cam.ratio = params.camRatio;
-        cam.near  = params.cam.min;
-        cam.far   = params.cam.max;
-    }
-
-    PhVec rpart( float t, float dt )
-    {
-        auto f = drag(vel,1) + controlForce(dt);
-        auto a = f / params.mass + vec3(0,0,-9.81);
-
-        PhVec ret;
-        ret.pos = vel;
-        ret.vel = a;
-        //ret.rot = quat(0);
+        UnitState ret;
+        ret.pos = state.vel;
+        ret.vel = f / params.mass + vec3(0,0,-9.81);
 
         return ret;
     }
 
-    vec3 drag( in vec3 v, float rho ) const
-    { return -v * v.len * params.CxS * rho / 2.0f; }
-
-    vec3 controlForce( float dt )
+    final vec3 dragForce()
     {
-        auto flist =
-            [
-                limitedForce( pos_PID( wayPoint-pos, dt ) ),
-                nearCorrect(),
-            ];
-        auto res = reduce!((r,a)=>(r+=a))( flist );
-        return limitedForce( res + vec3(0,0,9.81*params.mass) );
+        enum rho = 1.0f;
+        return -state.vel * state.vel.len * params.CxS * rho / 2.0f;
     }
 
     vec3 limitedForce( vec3 ff )
     {
-        if( ff.xy.len > params.gflim )
-            ff = vec3( ff.xy.e * params.gflim, ff.z );
+        if( ff.xy.len > params.hflim )
+            ff = vec3( ff.xy.e * params.hflim, ff.z );
         if( ff.z > params.vfmax ) ff.z = params.vfmax;
         if( ff.z < params.vfmin ) ff.z = params.vfmin;
         return ff;
     }
 
+    /// post proc actions
+    void postProc() {}
+}
+
+///
+struct UnitTrace
+{
+    vec3[] data; ///
+
+    float min_dist = 0.2; ///
+    size_t max_count = 4096; ///
+
+    ///
+    this( float md, size_t mc )
+    {
+        min_dist = md;
+        max_count = mc;
+    }
+
+    ///
+    void append( in vec3 p )
+    {
+        if( data.length != 0 && (data[$-1] - p).len2 > min_dist * min_dist ) return;
+
+        if( data.length < max_count ) data ~= p;
+        else data = data[1..$] ~ p;
+    }
+
+    ///
+    void reset() { data.length = 0; }
+}
+
+class Unit : BaseUnit
+{
+protected:
+
+    vec3 trg_point;
+    vec3 way_point;
+
+    fRay[] near;
+
+    UnitTrace hist;
+
+    PID!vec3 pid;
+
+public:
+
+    this( UnitState initial, UnitParams prms, vec3[3] pp )
+    {
+        super( initial, prms );
+        trg_point = initial.pos;
+        pid = new PID!vec3( pp[0], pp[1], pp[2] );
+    }
+
+    @property
+    {
+        
+        void target( in vec3 tp ) { trg_point = tp; }
+        vec3 target() const { return trg_point; }
+
+        vec3 wayPoint() const { return way_point; }
+    }
+
+    void appendNear( in fRay[] d... ) { near ~= d; }
+
+    ref const(UnitTrace) trace() const @property { return hist; }
+
+protected:
+
+    override void logic( float t, float dt )
+    {
+        calcWayPoint();
+    }
+
+    override void postProc()
+    {
+        hist.append( ph.pos );
+    }
+
+    override vec3 controlForce( float t, float dt )
+    {
+        auto flist =
+            [
+                limitedForce( pid( wayPoint - ph.pos, dt ) ),
+                nearCorrect(),
+            ];
+        auto res = reduce!((r,a)=>(r+=a))( flist );
+        return res + vec3(0,0,9.81*params.mass);
+    }
+
     vec3 nearCorrect()
     {
-        float max_dst = 4.8;
-        float max_dst2 = pow( max_dst, 2 );
-        auto mpts = data.getPoints( pos, max_dst );
+        return vec3(0);
+        //float max_dst = 4.8;
+        //float max_dst2 = pow( max_dst, 2 );
+        //auto mpts = data.getPoints( pos, max_dst );
 
-        return reduce!((r,pnt)
-                {
-                    auto d = pnt - pos;
-                    auto dl = d.len;
-                    auto ve = vel.e;
-                    auto de = d.e;
-                    auto pv = dot(de,ve);
-                    auto nk = cross( cross( de, ve ), de );
-                    if( !nk ) nk = vec3(0);
-                    return r += ( -de * pow(max_dst-dl,2) * 2 + nk ) * max(0.001,pv) * 4;
-                    //return r += ( -de * pow(max_dst-dl,2) * 2 * max(0,pv) + nk * max(0.1,pv) ) * 4;
-                })( vec3(0,0,0), filter!(a=>(a-pos).len2 < max_dst2)(
-                        chain( map!(a=>vec3(a.xyz))(filter!(a=>!(a.w<0.5))(mpts)),
-                               map!(a=>a.pos)(dangers) ) ) );
+        //return reduce!((r,pnt)
+        //        {
+        //            auto d = pnt - pos;
+        //            auto dl = d.len;
+        //            auto ve = vel.e;
+        //            auto de = d.e;
+        //            auto pv = dot(de,ve);
+        //            auto nk = cross( cross( de, ve ), de );
+        //            if( !nk ) nk = vec3(0);
+        //            return r += ( -de * pow(max_dst-dl,2) * 2 + nk ) * max(0.001,pv) * 4;
+        //            //return r += ( -de * pow(max_dst-dl,2) * 2 * max(0,pv) + nk * max(0.1,pv) ) * 4;
+        //        })( vec3(0,0,0), filter!(a=>(a-pos).len2 < max_dst2)(
+        //                chain( map!(a=>vec3(a.xyz))(filter!(a=>!(a.w<0.5))(mpts)),
+        //                       map!(a=>a.pos)(dangers) ) ) );
     }
 
     void calcWayPoint()
     {
-        auto nv = data.nearestVolume(pos);
+        //auto nv = data.nearestVolume(pos);
 
-        // сначала двигаемся к карте
-        if( nv.len2 > 0.001 )
-        {
-            way_point = pos + nv;
-            return;
-        }
+        //// сначала двигаемся к карте
+        //if( nv.len2 > 0.001 )
+        //{
+        //    way_point = pos + nv;
+        //    return;
+        //}
 
-        way_point = trg_pos;
-    }
-
-    void timer( float dt ) { snapshot_timer += dt; }
-
-    void updateCamera()
-    { cam.target = vec3( (matrix.inv * vec4(lookTarget,1)).xyz ); }
-
-    @property vec3 lookTarget() const
-    {
-        if( (pos - wayPoint).len2 < pow(params.min_move,2) )
-            return look_pnt;
-        else return (pos + vel + wayPoint) * 0.5;
+        way_point = trg_point;
     }
 }

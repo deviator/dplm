@@ -4,87 +4,78 @@ import std.stdio;
 import std.random;
 
 import des.math.linear;
+import des.util.arch;
 
 import model.unit;
-import model.dataaccess;
 
-class Model
+struct ModelConfig
+{
+    /// integration step
+    float h;
+
+    ///
+    size_t unit_count;
+
+    ///
+    uivec2 camres = uivec2(32,32);
+
+    invariant() { assert( h > 0 ); }
+}
+
+class Model : DesObject
 {
 protected:
+
+    float time = 0;
     
-    UnitParams uparams;
-    Unit[] uarr;
-    float time;
+    UnitParams unit_params;
 
-    float danger_dist = 10;
-
-    ModelDataAccess data;
+    ModelConfig cfg;
 
 public:
 
-    this( ModelDataAccess mda )
-    in{ assert( mda !is null ); } body
-    {
-        time = 0;
-        data = mda;
-        prepareParams();
+    Unit[] units;
 
-        data.setUnitCamResolution( uparams.cam.res );
+    this( ModelConfig cfg )
+    {
+        this.cfg = cfg;
+        createUnits();
     }
 
-    void step( float dt )
-    {
-        time += dt;
-        logic( dt );
-        foreach( unit; uarr )
-            unit.step( time, dt );
-    }
+    ref const(ModelConfig) config() const @property { return cfg; }
 
-    void appendUnits( size_t n )
+    void process()
     {
-        foreach( i; 0 .. n )
-            uarr ~= createDefaultUnit();
+        time += cfg.h;
+        logic( cfg.h );
+        foreach( unit; units )
+            unit.process( time, cfg.h );
     }
-
-    /+ TODO: remove +/
-    void randomizeTargets()
-    {
-        auto mapsize = vec3(data.size) * data.cellSize;
-        foreach( u; units )
-        {
-            u.target = vec3( rndPos(mapsize.x/2).xy, uniform(0.0f,20.0f) );
-            u.lookPnt = vec3( rndPos(mapsize.x/2).xy, 0 );
-        }
-    }
-
-    @property Unit[] units() { return uarr; }
 
 protected:
 
+    void createUnits()
+    {
+        prepareParams();
+        foreach( i; 0 .. cfg.unit_count )
+            units ~= createDefaultUnit();
+    }
+
     void prepareParams()
     {
-        auto glim = vec2(20);
-
-        with(uparams)
+        with(unit_params)
         {
-            gflim = 20;
+            hflim = 20;
             vfmin = -20;
             vfmax = 60;
 
             CxS = 0.15;
             mass = 0.5;
 
-            ready.dst = 0.05;
-            ready.vel = 0.01;
-            min_move = 0.2;
-
-            pid = [ vec3(3), vec3(0), vec3(1) ];
-
             cam.fov = 90;
-            cam.min = 1;
-            cam.max = 50;
-            cam.res = ivec2(32,32);
-            cam.rate = 5;
+            cam.near = 1;
+            cam.far = 50;
+            cam.res = cfg.camres;
         }
     }
 
@@ -95,25 +86,26 @@ protected:
 
     void processDangerUnits()
     {
-        auto cnt = units.length;
-        foreach( i; 0 .. cnt )
-            foreach( j; 0 .. cnt )
-            {
-                if( i == j ) continue;
-                auto a = units[i];
-                auto b = units[j];
-                if( (a.pos - b.pos).len2 < danger_dist * danger_dist )
-                {
-                    a.appendDanger( fRay( b.pos, b.vel ) );
-                    b.appendDanger( fRay( a.pos, a.vel ) );
-                }
-            }
+        //auto cnt = units.length;
+        //foreach( i; 0 .. cnt )
+        //    foreach( j; 0 .. cnt )
+        //    {
+        //        if( i == j ) continue;
+        //        auto a = units[i];
+        //        auto b = units[j];
+        //        if( (a.state.pos - b.state.pos).len2 < danger_dist * danger_dist )
+        //        {
+        //            a.appendNear( fRay( b.state.pos, b.state.vel ) );
+        //            b.appendNear( fRay( a.state.pos, a.state.vel ) );
+        //        }
+        //    }
     }
 
     Unit createDefaultUnit()
     {
         auto s = vec3(0,0,80) + rndPos(1);
-        auto buf = new Unit( PhVec(s,vec3(0)), uparams, data );
+        vec3[3] pid = [ vec3(3), vec3(0), vec3(1) ];
+        auto buf = newEMM!Unit( UnitState( s, vec3(0) ), unit_params, pid );
         buf.target = s;
         return buf;
     }

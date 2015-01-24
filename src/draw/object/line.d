@@ -19,7 +19,7 @@ public:
         warn_if_empty = false;
     }
 
-    void set( vec3[] p )
+    void set( in vec3[] p )
     {
         pnt_data = p.dup;
         updateBuffer();

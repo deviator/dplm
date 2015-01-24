@@ -21,12 +21,6 @@ import draw.worldmap;
 
 import compute;
 
-struct ModelConfig
-{
-    float h = 0.1f;
-    size_t unit_count = 5;
-}
-
 class Control : DesObject
 {
     mixin DES;
@@ -35,6 +29,7 @@ private:
     CLGLEnv env;
 
     Model mdl;
+
     World world;
     CLWorldMap worldmap;
     DrawUnit draw_unit;
@@ -54,8 +49,6 @@ private:
 
     bool draw_world_in_view = true;
 
-    ModelConfig mdlcfg;
-
 public:
 
     this()
@@ -71,10 +64,10 @@ public:
         worldmap = newEMM!CLWorldMap( env, ivec3(200,200,50), vec3(1), ddot.cdata );
         worldmap.needDraw = false;
 
-        mdl = newEMM!Model( worldmap );
+        mdl = newEMM!Model( ModelConfig( 0.05f, 10 ) );
 
-        mdl.appendUnits( mdlcfg.unit_count );
-        worldmap.setUnitCount( mdlcfg.unit_count );
+        worldmap.setUnitCount( mdl.units.length );
+        worldmap.setUnitCamResolution( mdl.config.camres );
 
         world = newEMM!World( vec2(200,200), 50 );
         render = newEMM!GLRenderToTex;
@@ -92,30 +85,15 @@ public:
 
     void idle()
     {
-        if( mdl.units.length )
-        {
-            buf_target = mdl.units[$-1].target;
+        //if( mdl.units.length )
+        //{
+        //    buf_target = mdl.units[$-1].target;
 
-            if( watch_copter )
-                cam.target = mdl.units[$-1].pos;
-        }
+        //    if( watch_copter )
+        //        cam.target = mdl.units[$-1].pos;
+        //}
 
-        if( model_proc )
-        {
-            foreach( u; mdl.units )
-                if( u.readyToSnapshot )
-                {
-                    render( u.snapshotResolution,
-                    {
-                        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-                        world.draw( u.camera );
-                    });
-                    render.depth.getImage( buf_depth );
-                    u.addSnapshot( buf_depth );
-                }
-            mdl.step( mdlcfg.h );
-            worldmap.process();
-        }
+        if( model_proc ) modelProcess();
     }
 
     void draw()
@@ -123,32 +101,11 @@ public:
         glClearColor(1,1,1,1);
         glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-        if( draw_world_in_view )
-            world.draw( cam );
+        if( draw_world_in_view ) world.draw( cam );
 
-        foreach( i, u; mdl.units )
-        {
-            if( u.nearTarget )
-                draw_unit.color = col4(0,1,0,1);
-            else
-                draw_unit.color = col4(0,0,1,1);
-            draw_unit.setParent( u );
-            draw_unit.draw( cam );
+        foreach( unit; mdl.units ) drawUnit( unit );
 
-            draw_unit.color = col4(1,0,1,0.5);
-            draw_unit.setCoordinate( u.wayPoint, quat(0,0,0,1) );
-            draw_unit.draw( cam );
-
-            draw_unit.color = col4(0,1,1,0.5);
-            draw_unit.setCoordinate( u.target, quat(0,0,0,1) );
-            draw_unit.draw( cam );
-
-            ddot.draw( cam );
-
-            track.set( u.currentTrack );
-            track.draw( cam );
-        }
-
+        ddot.draw( cam );
         worldmap.draw( cam );
     }
 
@@ -156,60 +113,17 @@ public:
 
     void keyReaction( in KeyboardEvent ev )
     {
-        auto trg = mdl.units[$-1].target;
         if( ev.pressed )
         {
             switch( ev.scan )
             {
-                case ev.Scan.P:
-                    model_proc = !model_proc;
-                    break;
-
-                case ev.Scan.W:
-                    draw_world_in_view = !draw_world_in_view;
-                    break;
-
-                case ev.Scan.D:
-                    ddot.needDraw = !ddot.needDraw;
-                    break;
-
-                case ev.Scan.M:
-                    worldmap.needDraw = !worldmap.needDraw;
-                    break;
-
-                /+ TODO: remove +/
-                case ev.Scan.R:
-                    mdl.randomizeTargets();
-                    break;
-
-                case ev.Scan.UP:
-                    mdl.units[$-1].target = trg + vec3(1,0,0) * 0.1;
-                    break;
-                case ev.Scan.DOWN:
-                    mdl.units[$-1].target = trg - vec3(1,0,0) * 0.1;
-                    break;
-                case ev.Scan.LEFT:
-                    mdl.units[$-1].target = trg + vec3(0,1,0) * 0.1;
-                    break;
-                case ev.Scan.RIGHT:
-                    mdl.units[$-1].target = trg - vec3(0,1,0) * 0.1;
-                    break;
-                case ev.Scan.I:
-                    mdl.units[$-1].target = vec3(-1,0,1);
-                    break;
-
-                case ev.Scan.G:
-                    world.regen( vec2(200,200), 100 );
-                    break;
-
-                case ev.Scan.NUMBER_1:
-                    cam.target = buf_target;
-                    break;
-
-                case ev.Scan.NUMBER_2:
-                    watch_copter = !watch_copter;
-                    break;
-
+                case ev.Scan.P: model_proc = !model_proc; break;
+                case ev.Scan.W: draw_world_in_view = !draw_world_in_view; break;
+                case ev.Scan.D: ddot.needDraw = !ddot.needDraw; break;
+                case ev.Scan.M: worldmap.needDraw = !worldmap.needDraw; break;
+                case ev.Scan.G: world.regen( vec2(200,200), 100 ); break;
+                case ev.Scan.NUMBER_1: cam.target = buf_target; break;
+                case ev.Scan.NUMBER_2: watch_copter = !watch_copter; break;
                 default: cam.keyReaction( ev );
             }
         }
@@ -225,5 +139,40 @@ protected:
         import std.file;
         import des.util.helpers;
         env = newEMM!CLGLEnv( readText( appPath( "..", "data", "compute", "main.cl" ) ) );
+    }
+
+    void modelProcess()
+    {
+        foreach( i, u; mdl.units )
+        {
+            render( u.camera.resolution,
+            {
+                glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+                world.draw( u.camera );
+            });
+            render.depth.getImage( buf_depth );
+            worldmap.updateMap( i, u.camera, buf_depth.mapAs!float );
+        }
+        mdl.process();
+        worldmap.process();
+    }
+
+    void drawUnit( Unit unit )
+    {
+        draw_unit.color = ( (unit.state.pos - unit.target).len2 < 0.01 ) ? col4(0,1,0,1) : col4(0,0,1,1);
+
+        draw_unit.setParent( unit );
+        draw_unit.draw( cam );
+
+        draw_unit.color = col4(1,0,1,0.5);
+        draw_unit.setCoordinate( unit.wayPoint, quat(0,0,0,1) );
+        draw_unit.draw( cam );
+
+        draw_unit.color = col4(0,1,1,0.5);
+        draw_unit.setCoordinate( unit.target, quat(0,0,0,1) );
+        draw_unit.draw( cam );
+
+        track.set( unit.trace.data );
+        track.draw( cam );
     }
 }

@@ -1,3 +1,5 @@
 module model;
 
-public import model.main;
+public:
+    import model.main;
+    import model.unit;

@@ -2,8 +2,7 @@ module model.pid;
 
 import des.math.basic;
 
-class PID(T)
-    if( hasBasicMathOp!T )
+class PID(T) if( hasBasicMathOp!T )
 {
     T P, I, D;
 
@@ -50,4 +49,3 @@ class APID(T) : PID!T
     override T opCall( in T v, float dt )
     { return super.opCall(v,dt) + add; }
 }
-

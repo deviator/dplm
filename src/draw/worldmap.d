@@ -3,16 +3,15 @@ module draw.worldmap;
 import std.stdio;
 import std.conv;
 
+import des.space;
 import des.il.region;
-
-public import draw.object.base;
-import model.dataaccess;
-
 import des.util.helpers;
+
+import draw.object.base;
 
 import compute;
 
-class CLWorldMap : BaseDrawObject, ModelDataAccess
+class CLWorldMap : BaseDrawObject
 {
 protected:
 
@@ -25,7 +24,7 @@ protected:
     alias Vector!(8,uint) VolumeData;
 
     mat4 mapmtr;
-    mapsize_t mres;
+    ivec3 mres;
 
     struct UnitData
     {
@@ -46,8 +45,10 @@ protected:
 
     CalcBuffer unitdepth, unitpoints;
 
-    ivec2 unitcamres;
+    uivec2 unitcamres;
     size_t unitcount;
+
+    Resolver resolver;
 
 public:
 
@@ -64,14 +65,16 @@ public:
         unitpoints = unitpts;
 
         mapmtr = mat4.diag( cell, 1 ).setCol( 3, vec4( vec2(-res.xy)*cell.xy, 0, 1 ) );
-        mres = mapsize_t( res.xy*2, res.z );
+        mres = ivec3( res.xy*2, res.z );
 
         super( null, readShader( "worldmap_light.glsl" ) );
+
+        resolver = new Resolver;
     }
 
-    void updateMap( size_t unitid, in mat4 persp, float camfar,
-                      in mat4 transform, in float[] depth )
+    void updateMap( size_t unitid, SimpleCamera cam, in float[] depth )
     {
+        auto transform = resolve( cam );
         auto pos = vec3( transform.col(3)[0..3] );
 
         updateUnitData();
@@ -80,16 +83,16 @@ public:
         env.prog.kernel["depthToPoint"]( [1024], [32],
                                          unitdepth,
                                          uivec2( unitcamres ),
-                                         camfar,
-                                         persp.inv,
-                                         mat4( transform ),
+                                         cam.far,
+                                         cam.projection.matrix.inv,
+                                         transform,
                                          unitpoints,
                                          cast(uint)unitid );
 
         env.prog.kernel["updateMap"]( [1024], [32],
                                       dmap, uivec4( mres, 0 ),
                                       cast(uint)unitid,
-                                      vec4( pos, camfar ),
+                                      vec4( pos, cam.far ),
                                       uivec2( unitcamres ),
                                       unitpoints, matrix.inv );
 
@@ -105,7 +108,7 @@ public:
 
     void process() { }
 
-    void setUnitCamResolution( in ivec2 cr ) { unitcamres = cr; }
+    void setUnitCamResolution( in uivec2 cr ) { unitcamres = cr; }
 
     void setUnitCount( size_t cnt ) { unitcount = cnt; }
 
@@ -169,15 +172,15 @@ public:
         return dvol.overlap( cvol );
     }
 
-    @property mapsize_t size() const { return mres; }
+    @property ivec3 size() const { return mres; }
     @property vec3 cellSize() const 
     { return vec3( (matrix * vec4(1,1,1,0)).xyz ); }
 
     override void draw( Camera cam )
     {
         shader.setUniform!mat4( "prj", cam.projection.matrix * cam.resolve(this) );
-        shader.setUniform!int( "size_x", cast(int)mres.w );
-        shader.setUniform!int( "size_y", cast(int)mres.h );
+        shader.setUniform!int( "size_x", cast(int)mres.x );
+        shader.setUniform!int( "size_y", cast(int)mres.y );
         //shader.setUniform!float( "psize", 0.03 );
 
         glEnable( GL_PROGRAM_POINT_SIZE );
@@ -191,7 +194,7 @@ protected:
 
     override void prepareBuffers()
     {
-        auto cnt = mres.w * mres.h * mres.d;
+        auto cnt = mres.x * mres.y * mres.z;
 
         dmap = newEMM!CalcBuffer( env );
         connect( dmap.elementCountCB, &setDrawCount );
@@ -204,4 +207,6 @@ protected:
 
         near = newEMM!CalcBuffer( env );
     }
+
+    mat4 resolve( SpaceNode obj ) { return resolver( obj, null ); }
 }
