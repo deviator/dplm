@@ -53,28 +53,28 @@ protected:
 
 public:
 
-    this( Node p ) { super(p); }
+    this( SpaceNode p ) { super(p); }
 }
 
 class ColumnCube : Cube
 {
-    this( Node p ) { super(p); }
+    this( SpaceNode p ) { super(p); }
 
     void setOffsetAndSize( vec3 pos, vec3 size )
     {
         auto offset = pos + vec3(0,0,size.z/2);
-        mtr = mat4.diag(vec4(size/2,1)).setCol(3,vec4(offset,1));
+        self_mtr = mat4.diag(vec4(size/2,1)).setCol(3,vec4(offset,1));
     }
 }
 
 class CellCube : Cube
 {
-    this( Node p ) { super(p); }
+    this( SpaceNode p ) { super(p); }
 
     void setOffsetAndSize( vec3 pos, vec3 size )
     {
         auto offset = pos + size/2;
-        mtr = mat4.diag(vec4(size/2,1)).setCol(3,vec4(offset,1));
+        self_mtr = mat4.diag(vec4(size/2,1)).setCol(3,vec4(offset,1));
     }
 
     void setCorners( vec3 a, vec3 b )
@@ -94,7 +94,7 @@ protected:
 
 public:
 
-    this( Node p ) { super(p); }
+    this( SpaceNode p ) { super(p); }
 
     void addCube( vec3 offset, vec3 size )
     {

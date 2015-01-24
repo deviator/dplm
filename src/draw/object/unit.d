@@ -5,14 +5,12 @@ import std.math;
 
 class DrawUnit : GLSimpleObject, DrawNode
 {
+    mixin SpaceNodeHelper;
 protected:
 
     GLBuffer pos;
 
     col4 clr;
-
-    Node par;
-    mat4 mtr;
 
     void fillBuffers()
     {
@@ -47,16 +45,16 @@ protected:
 
 public:
 
-    this( Node p )
+    this( SpaceNode p )
     {
-        super( SS_Simple );
+        super( readShader( "simple.glsl" ) );
         auto loc = shader.getAttribLocation( "position" );
         if( loc < 0 ) assert( 0, "no position in shader" );
 
         pos = createArrayBuffer();
         setAttribPointer( pos, loc, 3, GLType.FLOAT );
 
-        par = p;
+        spaceParent = p;
 
         clr = col4( 1,0,0,1 );
 
@@ -65,8 +63,8 @@ public:
 
     void draw( Camera cam )
     {
-        shader.setUniformMat( "prj", cam(this) );
-        shader.setUniformVec( "color", clr );
+        shader.setUniform!mat4( "prj", cam.projection.matrix * cam.resolve(this) );
+        shader.setUniform!vec4( "color", vec4(clr) );
 
         glEnable( GL_DEPTH_TEST );
 
@@ -79,25 +77,19 @@ public:
         col4 color( in col4 n ) 
         { clr = n; return clr; }
 
-        mat4 matrix() const { return mtr; }
-        mat4 matrix( in mat4 m )
-        { mtr = m; return mtr; }
-
-        const(Node) parent() const { return par; }
-
         bool needDraw() const { return draw_flag; }
         void needDraw( bool nd ) { draw_flag = nd; }
     }
 
-    void setParent( Node p )
-    {
-        matrix = mat4();
-        par = p;
-    }
-
     void setCoordinate( in vec3 pos, in quat rot )
     {
-        matrix = quatAndPosToMatrix( rot, pos );
-        par = null;
+        self_mtr = quatAndPosToMatrix( rot, pos );
+        spaceParent = null;
+    }
+
+    void setParent( SpaceNode p )
+    {
+        spaceParent = p;
+        self_mtr = mat4.init;
     }
 }

@@ -7,7 +7,7 @@ import std.algorithm;
 
 import des.math.linear;
 import des.math.basic;
-import des.util.logger;
+import des.space;
 
 import des.il;
 
@@ -20,9 +20,7 @@ import std.stdio;
 struct PhVec
 {
     vec3 pos, vel;
-    quat rot = quat(0,0,0,1);
-
-    mixin( BasicMathOp!"pos vel rot" );
+    mixin( BasicMathOp!"pos vel" );
 }
 
 struct UnitParams
@@ -55,8 +53,10 @@ struct UnitParams
     }
 }
 
-class Unit : Node
+class Unit : SpaceNode
 {
+    mixin SpaceNodeHelper;
+
 protected:
 
     static size_t unit_count = 0;
@@ -74,7 +74,7 @@ protected:
     vec3 last_snapshot_pos;
     vec3 look_pnt;
 
-    fSeg[] dangers;
+    fRay[] dangers;
     vec4[] ldpoints;
 
     vec3[] track;
@@ -114,12 +114,6 @@ public:
         {
             vec3 pos() { return phcrd.pos; }
             vec3 vel() { return phcrd.vel; }
-            quat rot() { return phcrd.rot; }
-
-            /+ interface Node +/
-            mat4 matrix() { return quatAndPosToMatrix( phcrd.rot, phcrd.pos ); }
-            const(Node) parent() { return null; }
-            /+ --//-- +/
         }
         
         void target( in vec3 tp )
@@ -164,10 +158,11 @@ public:
         calcWayPoint();
         phcrd += rpart( t, dt ) * dt;
         timer( dt );
+        self_mtr.setCol( 3, vec4(pos,1) );
         trackAppend();
     }
 
-    void appendDanger( in fSeg[] d... ) { dangers ~= d; }
+    void appendDanger( in fRay[] d... ) { dangers ~= d; }
 
     @property vec3[] currentTrack() { return track; }
 
@@ -209,7 +204,7 @@ protected:
         PhVec ret;
         ret.pos = vel;
         ret.vel = a;
-        ret.rot = quat(0);
+        //ret.rot = quat(0);
 
         return ret;
     }
@@ -255,8 +250,8 @@ protected:
                     return r += ( -de * pow(max_dst-dl,2) * 2 + nk ) * max(0.001,pv) * 4;
                     //return r += ( -de * pow(max_dst-dl,2) * 2 * max(0,pv) + nk * max(0.1,pv) ) * 4;
                 })( vec3(0,0,0), filter!(a=>(a-pos).len2 < max_dst2)(
-                        chain( map!(a=>a.xyz)(filter!(a=>!(a.w<0.5))(mpts)),
-                               map!(a=>a.pnt)(dangers) ) ) );
+                        chain( map!(a=>vec3(a.xyz))(filter!(a=>!(a.w<0.5))(mpts)),
+                               map!(a=>a.pos)(dangers) ) ) );
     }
 
     void calcWayPoint()
@@ -276,7 +271,7 @@ protected:
     void timer( float dt ) { snapshot_timer += dt; }
 
     void updateCamera()
-    { cam.target = (matrix.inv * vec4(lookTarget,1)).xyz; }
+    { cam.target = vec3( (matrix.inv * vec4(lookTarget,1)).xyz ); }
 
     @property vec3 lookTarget() const
     {

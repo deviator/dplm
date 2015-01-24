@@ -2,14 +2,14 @@ import std.stdio;
 import des.app;
 import draw.window;
 
-import des.util;
+import des.util.logsys;
 
 void main()
 {
-    log_info( "app start" );
-    GLApp app = new GLApp;
+    logger.info( "app start" );
+    auto app = new DesApp;
     app.addWindow({ return new MainWindow( "diploma simulator", ivec2(800,600) ); });
-    app.run();
+    while( app.isRunning ) app.step();
     app.destroy();
-    log_info( "app finish" );
+    logger.info( "app finish" );
 }

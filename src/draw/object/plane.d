@@ -47,23 +47,23 @@ protected:
 
 public:
 
-    this( Node p=null )
+    this( SpaceNode p=null )
     {
-        super( p, SS_ShadeObject );
+        super( p, readShader( "shadeobject.glsl" ) );
         clr = col4( vec3(0.7), 1 );
     }
 
     void setOffsetAndSize( vec3 pos, vec2 size )
-    { mtr = mat4.diag(vec4(size/2,1,1)).setCol(3,vec4(pos,1)); }
+    { self_mtr = mat4.diag(vec4(size/2,1,1)).setCol(3,vec4(pos,1)); }
 
     override void draw( Camera cam )
     {
         auto rs = cam.resolve(this);
 
-        shader.setUniformMat( "prj", cam(this) );
-        shader.setUniformMat( "resolve", rs );
-        shader.setUniformVec( "resolved_light_pos", (vec4(0,0,0,1)).xyz );
-        shader.setUniformVec( "color", clr );
+        shader.setUniform!mat4( "prj", cam.projection.matrix * cam.resolve(this) );
+        shader.setUniform!mat4( "resolve", rs );
+        shader.setUniform!vec3( "resolved_light_pos", vec3(0) );
+        shader.setUniform!vec4( "color", vec4(clr) );
 
         drawElements( DrawMode.TRIANGLES );
     }

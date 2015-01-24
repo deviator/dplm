@@ -1,7 +1,12 @@
 module draw.control;
 
+import des.util.arch;
+import des.util.logsys;
+
+import des.il;
 import des.app.event;
-import des.util.timer;
+
+import des.gl.base.render;
 
 import model;
 
@@ -14,19 +19,21 @@ import draw.object.plane;
 import draw.object.line;
 import draw.worldmap;
 
-import des.gl.base.render;
+import compute;
 
-import des.il;
-import des.util.logger;
-import des.util.emm;
-
-import std.stdio;
-
-class Control : ExternalMemoryManager
+struct ModelConfig
 {
-    mixin ParentEMM;
+    float h = 0.1f;
+    size_t unit_count = 5;
+}
+
+class Control : DesObject
+{
+    mixin DES;
 
 private:
+    CLGLEnv env;
+
     Model mdl;
     World world;
     CLWorldMap worldmap;
@@ -35,8 +42,6 @@ private:
     Line track;
 
     GLRenderToTex render;
-
-    Timer tm;
 
     bool model_proc = true;
 
@@ -49,25 +54,27 @@ private:
 
     bool draw_world_in_view = true;
 
+    ModelConfig mdlcfg;
+
 public:
 
-    this( MCamera c )
+    this()
     {
-        log_trace( "create control start" );
+        logger.trace( "create control start" );
 
-        cam = c;
+        prepareCLGLEnv();
 
-        ddot = newEMM!CalcPoint(null);
+        cam = new MCamera;
 
-        worldmap = newEMM!CLWorldMap( ivec3(200,200,50), vec3(1), ddot.data );
+        ddot = newEMM!CalcPoint( env, null );
+
+        worldmap = newEMM!CLWorldMap( env, ivec3(200,200,50), vec3(1), ddot.cdata );
         worldmap.needDraw = false;
 
         mdl = newEMM!Model( worldmap );
 
-        auto unit_count = 5;
-
-        mdl.appendUnits( unit_count );
-        worldmap.setUnitCount( unit_count );
+        mdl.appendUnits( mdlcfg.unit_count );
+        worldmap.setUnitCount( mdlcfg.unit_count );
 
         world = newEMM!World( vec2(200,200), 50 );
         render = newEMM!GLRenderToTex;
@@ -80,9 +87,7 @@ public:
         track.width(2);
         track.color = col4(0,1,0,1);
 
-        tm = newEMM!Timer;
-
-        log_trace( "create control complite" );
+        logger.trace( "create control complite" );
     }
 
     void idle()
@@ -108,7 +113,7 @@ public:
                     render.depth.getImage( buf_depth );
                     u.addSnapshot( buf_depth );
                 }
-            mdl.step( tm.cycle() );
+            mdl.step( mdlcfg.h );
             worldmap.process();
         }
     }
@@ -127,15 +132,15 @@ public:
                 draw_unit.color = col4(0,1,0,1);
             else
                 draw_unit.color = col4(0,0,1,1);
-            draw_unit.setParent(u);
+            draw_unit.setParent( u );
             draw_unit.draw( cam );
 
             draw_unit.color = col4(1,0,1,0.5);
-            draw_unit.setCoordinate( u.wayPoint, u.rot );
+            draw_unit.setCoordinate( u.wayPoint, quat(0,0,0,1) );
             draw_unit.draw( cam );
 
             draw_unit.color = col4(0,1,1,0.5);
-            draw_unit.setCoordinate( u.target, u.rot );
+            draw_unit.setCoordinate( u.target, quat(0,0,0,1) );
             draw_unit.draw( cam );
 
             ddot.draw( cam );
@@ -149,7 +154,7 @@ public:
 
     void quit() { }
 
-    void keyControl( in KeyboardEvent ev )
+    void keyReaction( in KeyboardEvent ev )
     {
         auto trg = mdl.units[$-1].target;
         if( ev.pressed )
@@ -157,7 +162,6 @@ public:
             switch( ev.scan )
             {
                 case ev.Scan.P:
-                    tm.restart( 0.05 );
                     model_proc = !model_proc;
                     break;
 
@@ -206,8 +210,20 @@ public:
                     watch_copter = !watch_copter;
                     break;
 
-                default: break;
+                default: cam.keyReaction( ev );
             }
         }
+    }
+
+    void mouseReaction( in MouseEvent ev ) { cam.mouseReaction( ev ); }
+    void resize( ivec2 sz ) { cam.ratio = sz.w / cast(float)sz.h; }
+
+protected:
+    
+    void prepareCLGLEnv()
+    {
+        import std.file;
+        import des.util.helpers;
+        env = newEMM!CLGLEnv( readText( appPath( "..", "data", "compute", "main.cl" ) ) );
     }
 }

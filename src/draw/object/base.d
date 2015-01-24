@@ -2,13 +2,13 @@ module draw.object.base;
 
 public import des.gl.simple;
 public import des.math.linear;
-public import draw.object.shader;
 public import draw.object.util;
+public import des.space;
 
-import des.util.logger;
+import des.util.logsys;
 import std.stdio;
 
-interface DrawNode : Node
+interface DrawNode : SpaceNode
 {
     void draw( Camera cam );
 
@@ -17,24 +17,15 @@ interface DrawNode : Node
         col4 color() const;
         col4 color( in col4 n );
 
-        mat4 matrix() const;
-        mat4 matrix( in mat4 m );
-
-        const(Node) parent() const;
-
         bool needDraw() const;
         void needDraw( bool nd );
     }
-
-    void setParent( Node p );
 }
 
 class DrawNodeList : DrawNode
 {
+    mixin SpaceNodeHelper;
 protected:
-    Node par;
-    mat4 mtr;
-
     DrawNode[] list;
 
     col4 clr;
@@ -42,11 +33,7 @@ protected:
 
 public:
 
-    void draw( Camera cam )
-    {
-        foreach( obj; list )
-            obj.draw(cam);
-    }
+    void draw( Camera cam ) { foreach( obj; list ) obj.draw(cam); }
 
     @property
     {
@@ -59,12 +46,6 @@ public:
             return clr;
         }
 
-        mat4 matrix() const { return mtr; }
-        mat4 matrix( in mat4 m )
-        { mtr = m; return mtr; }
-
-        const(Node) parent() const { return par; }
-
         bool needDraw() const { return need_draw; }
         void needDraw( bool nd )
         {
@@ -73,29 +54,25 @@ public:
                 obj.needDraw = nd;
         }
     }
-
-    void setParent( Node p ) { par = p; }
 }
 
 class BaseDrawObject : GLSimpleObject, DrawNode
 {
+    mixin SpaceNodeHelper;
 protected:
 
     abstract void prepareBuffers();
 
     col4 clr;
 
-    Node par;
-    mat4 mtr;
-
 public:
 
-    this( Node p, in ShaderSource sh )
+    this( SpaceNode p, in string sh )
     {
-        logger.info( "base draw object" );
         super( sh );
-        par = p;
+        spaceParent = p;
         prepareBuffers();
+        logger.info( "pass" );
     }
 
     @property
@@ -108,31 +85,22 @@ public:
             return clr;
         }
 
-        mat4 matrix() const { return mtr; }
-        mat4 matrix( in mat4 m )
-        {
-            logger.trace( "%s", m );
-            mtr = m;
-            return mtr;
-        }
-
-        const(Node) parent() const { return par; }
-
         bool needDraw() const { return draw_flag; }
         void needDraw( bool nd )
         {
-            logger.Debug( "%s", nd );
             draw_flag = nd;
+            logger.Debug( "%s", nd );
         }
     }
 
-    void setParent( Node p )
-    {
-        logger.trace("%s",typeid(p));
-        par = p;
-    }
-
     abstract void draw( Camera cam );
+}
+
+string readShader( string name )
+{
+    import std.file;
+    import des.util.helpers;
+    return readText( appPath( "..", "data", "shaders", name ) );
 }
 
 class BaseShadeObject : BaseDrawObject
@@ -160,7 +128,7 @@ protected:
     {
         auto loc = shader.getAttribLocations( "position", "normal" );
         if( loc[0] < 0 ) assert( 0, "no position in shader" );
-        if( loc[1] < 0 ) stderr.writeln( "no normal in shader" );
+        if( loc[1] < 0 ) logger.warn( "no normal in shader" );
         return loc;
     }
 
@@ -169,9 +137,10 @@ protected:
 
 public:
 
-    this( Node p )
+    this( SpaceNode p )
     {
-        super( p, SS_ShadeObject );
+        import std.file;
+        super( p, readShader( "shadeobject.glsl" ) );
         clr = col4( vec3(0.7), 1 );
     }
 
@@ -179,10 +148,10 @@ public:
     {
         auto rs = cam.resolve(this);
 
-        shader.setUniformMat( "prj", cam(this) );
-        shader.setUniformMat( "resolve", rs );
-        shader.setUniformVec( "resolved_light_pos", (vec4(0,0,0,1)).xyz );
-        shader.setUniformVec( "color", clr );
+        shader.setUniform!mat4( "prj", cam.projection.matrix * rs );
+        shader.setUniform!mat4( "resolve", rs );
+        shader.setUniform!vec3( "resolved_light_pos", vec3(0) );
+        shader.setUniform!vec4( "color", vec4(clr) );
 
         glEnable( GL_DEPTH_TEST );
 

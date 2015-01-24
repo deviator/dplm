@@ -3,21 +3,20 @@ module draw.worldmap;
 import std.stdio;
 import std.conv;
 
-import des.cl.glsimple;
-
 import des.il.region;
 
 public import draw.object.base;
-import draw.calcbuffer;
 import model.dataaccess;
 
 import des.util.helpers;
 
-enum CLSourceWithKernels = staticLoadCLSource!"cl/main.cl";
+import compute;
 
 class CLWorldMap : BaseDrawObject, ModelDataAccess
 {
 protected:
+
+    CLGLEnv env;
 
     CalcBuffer dmap;
 
@@ -27,8 +26,6 @@ protected:
 
     mat4 mapmtr;
     mapsize_t mres;
-
-    SimpleCLKernel[string] kernel;
 
     struct UnitData
     {
@@ -54,43 +51,49 @@ protected:
 
 public:
 
-    this( ivec3 res, vec3 cell, CalcBuffer unitpts )
+    this( CLGLEnv e, ivec3 res, vec3 cell, CalcBuffer unitpts )
+    in
     {
-        mapmtr = mat4.diag( cell, 1 ).setCol(3, vec4(vec2(-res.xy)*cell.xy,0,1) );
-        mres = mapsize_t(res.xy*2,res.z);
-        prepareCL();
-
-        super( null, SS_WorldMap_M );
+        assert( e !is null );
+        assert( unitpts !is null );
+    }
+    body
+    {
+        env = e;
 
         unitpoints = unitpts;
+
+        mapmtr = mat4.diag( cell, 1 ).setCol( 3, vec4( vec2(-res.xy)*cell.xy, 0, 1 ) );
+        mres = mapsize_t( res.xy*2, res.z );
+
+        super( null, readShader( "worldmap_light.glsl" ) );
     }
 
     void updateMap( size_t unitid, in mat4 persp, float camfar,
                       in mat4 transform, in float[] depth )
     {
-        auto pos = vec3(transform.col(3)[0..3]);
+        auto pos = vec3( transform.col(3)[0..3] );
 
         updateUnitData();
         unitdepth.setData( depth );
 
-        CLGL.acquireFromGL( dmap, unitdepth, unitpoints );
+        env.prog.kernel["depthToPoint"]( [1024], [32],
+                                         unitdepth,
+                                         uivec2( unitcamres ),
+                                         camfar,
+                                         persp.inv,
+                                         mat4( transform ),
+                                         unitpoints,
+                                         cast(uint)unitid );
 
-        kernel["depthToPoint"].setArgs( unitdepth,
-                                        uivec2(unitcamres),
-                                        camfar,
-                                        persp.inv,
-                                        mat4( transform ),
-                                        unitpoints,
-                                        cast(uint)unitid );
-        kernel["depthToPoint"].exec( 1, [0], [1024], [32] );
+        env.prog.kernel["updateMap"]( [1024], [32],
+                                      dmap, uivec4( mres, 0 ),
+                                      cast(uint)unitid,
+                                      vec4( pos, camfar ),
+                                      uivec2( unitcamres ),
+                                      unitpoints, matrix.inv );
 
-        kernel["updateMap"].setArgs( dmap, uivec4(mres,0),
-                                     cast(uint)unitid,
-                                     vec4( pos, camfar ),
-                                     uivec2(unitcamres),
-                                     unitpoints, matrix.inv );
-        kernel["updateMap"].exec( 1, [0], [1024], [32] );
-        CLGL.releaseToGL();
+        env.releaseAllToGL();
     }
 
     protected void updateUnitData()
@@ -128,14 +131,11 @@ public:
 
         near.setData( new vec4[](count) );
 
-        CLGL.acquireFromGL( dmap, near );
-
-        kernel["nearfind"].setArgs( dmap, uivec4( mres, 0 ),
+        env.prog.kernel["nearfind"]( [32], [8],
+                                     dmap, uivec4( mres, 0 ),
                             cast(uint)count, volume, near );
 
-        kernel["nearfind"].exec( 1, [0], [32], [8] );
-
-        CLGL.releaseToGL();
+        env.releaseAllToGL();
 
         auto nearbuf = near.getData!vec4;
 
@@ -155,7 +155,7 @@ public:
             else if( mpos[i] >= mres[i] ) mpos[i] = mres[i] - mpos[i];
             else mpos[i] = 0;
         }
-        return (matrix * vec4(mpos,0)).xyz;
+        return vec3( (matrix * vec4(mpos,0)).xyz );
     }
 
     protected auto getRegion( in mat4 m, in vec3 pos, float dst )
@@ -171,16 +171,16 @@ public:
 
     @property mapsize_t size() const { return mres; }
     @property vec3 cellSize() const 
-    { return (matrix * vec4(1,1,1,0)).xyz; }
+    { return vec3( (matrix * vec4(1,1,1,0)).xyz ); }
 
     override void draw( Camera cam )
     {
-        shader.setUniformMat( "prj", cam(this) );
+        shader.setUniform!mat4( "prj", cam.projection.matrix * cam.resolve(this) );
         shader.setUniform!int( "size_x", cast(int)mres.w );
         shader.setUniform!int( "size_y", cast(int)mres.h );
         //shader.setUniform!float( "psize", 0.03 );
 
-        glEnable(GL_PROGRAM_POINT_SIZE);
+        glEnable( GL_PROGRAM_POINT_SIZE );
         drawArrays( DrawMode.POINTS );
     }
 
@@ -189,27 +189,19 @@ public:
 
 protected:
 
-    void prepareCL() { kernel = CLGL.build( CLSourceWithKernels ); }
-
-    override void selfDestroy()
-    {
-        CLGL.systemDestroy();
-        super.selfDestroy();
-    }
-
     override void prepareBuffers()
     {
         auto cnt = mres.w * mres.h * mres.d;
 
-        dmap = registerChildEMM( new CalcBuffer() );
-        dmap.elementCountCallback = &setDrawCount;
+        dmap = newEMM!CalcBuffer( env );
+        connect( dmap.elementCountCB, &setDrawCount );
 
         auto loc = shader.getAttribLocation( "data" );
         setAttribPointer( dmap, loc, 1, GLType.FLOAT );
         dmap.setData( new float[](cnt) );
 
-        unitdepth = registerChildEMM( new CalcBuffer() );
+        unitdepth = newEMM!CalcBuffer( env );
 
-        near = registerChildEMM( new CalcBuffer() );
+        near = newEMM!CalcBuffer( env );
     }
 }

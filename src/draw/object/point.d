@@ -1,24 +1,60 @@
 module draw.object.point;
 
 public import draw.object.base;
-import draw.calcbuffer;
-import des.util.logger;
+import compute;
+import des.util.logsys;
+import std.file;
 
-class Point : BaseDrawObject
+abstract class BasePoint : BaseDrawObject
+{
+protected:
+    GLBuffer data;
+
+public:
+    this( SpaceNode p )
+    {
+        super( p, readShader( "depthpoint.glsl" ) );
+        clr = col4( 0,1,0,1 );
+        warn_if_empty = false;
+    }
+
+    float size( float s ) @property
+    {
+        glPointSize( s );
+        return s;
+    }
+
+    override void draw( Camera cam )
+    {
+        shader.setUniform!mat4( "prj", cam.projection.matrix * cam.resolve(this) );
+        shader.setUniform!vec4( "color", vec4(clr) );
+
+        drawArrays( DrawMode.POINTS );
+    }
+
+protected:
+
+    override void prepareBuffers()
+    {
+        data = createData();
+
+        connect( data.elementCountCB, &setDrawCount );
+        auto loc = shader.getAttribLocation( "data" );
+        setAttribPointer( data, loc, 4, GLType.FLOAT );
+    }
+
+    abstract GLBuffer createData();
+}
+
+class Point : BasePoint
 {
 protected:
 
     vec4[] pnt_data;
-    GLBuffer data;
 
 public:
 
-    this( Node p )
-    {
-        super( p, SS_DepthPoint );
-        clr = col4( 0,1,0, 1 );
-        warn_if_empty = false;
-    }
+    this( SpaceNode p ) { super( p ); }
 
     void set( vec4[] p )
     {
@@ -34,17 +70,6 @@ public:
 
     void reset() { pnt_data.length = 0; }
 
-    void size( float s ) { glPointSize(s); }
-
-    override void draw( Camera cam )
-    {
-        shader.setUniformMat( "prj", cam(this) );
-        shader.setUniformVec( "color", clr );
-
-        if( pnt_data.length )
-            drawArrays( DrawMode.POINTS );
-    }
-
 protected:
 
     void updateBuffer()
@@ -53,49 +78,28 @@ protected:
             data.setData( pnt_data );
     }
 
-    override void prepareBuffers()
-    {
-        auto b = createArrayBuffersFromAttributeInfo(
-                APInfo( "data", 4, GLType.FLOAT ) );
-        data = b["data"];
-    }
+    override GLBuffer createData()
+    { return newEMM!GLBuffer( GLBuffer.Target.ARRAY_BUFFER ); }
 }
 
-class CalcPoint : BaseDrawObject
+class CalcPoint : BasePoint
 {
 protected:
 
+    CLGLEnv env;
+
 public:
 
-    CalcBuffer data;
+    CalcBuffer cdata;
 
-    this( Node p )
+    this( CLGLEnv e, SpaceNode p )
     {
-        logger = new InstanceFullLogger(this, "ddots");
-
-        super( p, SS_DepthPoint );
-        clr = col4( 0,1,0, 1 );
-        warn_if_empty = false;
-    }
-
-    void size( float s ) { glPointSize(s); }
-
-    override void draw( Camera cam )
-    {
-        shader.setUniformMat( "prj", cam(this) );
-        shader.setUniformVec( "color", clr );
-
-        drawArrays( DrawMode.POINTS );
+        env = e;
+        super( p );
     }
 
 protected:
 
-    override void prepareBuffers()
-    {
-        data = newEMM!CalcBuffer;
-        data.elementCountCallback = &setDrawCount;
-
-        auto loc = shader.getAttribLocation( "data" );
-        setAttribPointer( data, loc, 4, GLType.FLOAT );
-    }
+    override GLBuffer createData()
+    { return cdata = newEMM!CalcBuffer( env ); }
 }

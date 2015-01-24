@@ -5,6 +5,7 @@ public import des.math.linear;
 
 import des.il;
 
+/+
 enum SS_DepthTextureView = ShaderSource(
 `#version 330
 in vec2 pos;
@@ -93,3 +94,4 @@ protected:
         glDisable( GL_DEPTH_TEST );
     }
 }
++/

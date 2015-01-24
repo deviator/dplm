@@ -1,7 +1,7 @@
 module draw.object.line;
 
 public import draw.object.base;
-import draw.calcbuffer;
+import compute;
 
 class Line : BaseDrawObject
 {
@@ -12,9 +12,9 @@ protected:
 
 public:
 
-    this( Node p=null )
+    this( SpaceNode p=null )
     {
-        super( p, SS_Line );
+        super( p, readShader( "line.glsl" ) );
         clr = col4( 1,0,0, 1 );
         warn_if_empty = false;
     }
@@ -37,8 +37,8 @@ public:
 
     override void draw( Camera cam )
     {
-        shader.setUniformMat( "prj", cam(this) );
-        shader.setUniformVec( "color", clr );
+        shader.setUniform!mat4( "prj", cam.projection.matrix * cam.resolve(this) );
+        shader.setUniform!vec4( "color", vec4(clr) );
 
         if( pnt_data.length )
             drawArrays( DrawMode.LINE_STRIP );

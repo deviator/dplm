@@ -104,8 +104,8 @@ protected:
                 auto b = units[j];
                 if( (a.pos - b.pos).len2 < danger_dist * danger_dist )
                 {
-                    a.appendDanger( fSeg( b.pos, b.vel ) );
-                    b.appendDanger( fSeg( a.pos, a.vel ) );
+                    a.appendDanger( fRay( b.pos, b.vel ) );
+                    b.appendDanger( fRay( a.pos, a.vel ) );
                 }
             }
     }
