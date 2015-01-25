@@ -173,7 +173,6 @@ public:
 
     @property
     {
-        
         void target( in vec3 tp ) { trg_point = tp; }
         vec3 target() const { return trg_point; }
 

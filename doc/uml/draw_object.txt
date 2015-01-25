@@ -1,0 +1,79 @@
+@startuml
+
+package des.util.arch <<Frame>> {
+    class DesObject
+}
+
+package des.gl <<Frame>> {
+    class GLBuffer
+    class GLSimpleObject
+}
+
+DesObject <|-- GLBuffer
+DesObject <|-- GLSimpleObject
+
+package des.space <<Frame>> {
+    interface SpaceNode
+}
+
+package sim.draw <<Frame>> {
+
+    class CLGLEnv
+    class CalcBuffer
+    GLBuffer <|-- CalcBuffer
+
+    package sim.draw.object <<Frame>> {
+
+        interface DrawNode {
+            +draw( Camera ) : void
+            -- @property --
+            +color : col4 { set, get }
+            +needDraw : bool { set, get }
+        }
+
+        SpaceNode <|-- DrawNode
+
+        class DrawNodeList {
+            #list : DrawNode[]
+        }
+
+        DrawNodeList *- DrawNode
+
+        DesObject <|-- DrawNodeList
+        DrawNode <|.. DrawNodeList
+
+        class BaseDrawObject
+        DrawNode <|.. BaseDrawObject
+        GLSimpleObject <|-- BaseDrawObject
+
+        class BaseShadeObject
+        BaseDrawObject <|-- BaseShadeObject
+
+        class MultiCube
+        BaseShadeObject <|-- MultiCube
+
+        class Line
+        BaseDrawObject <|-- Line
+
+        class Plane
+        BaseDrawObject <|-- Plane
+
+        class BasePoint <<abstract>>
+        BaseDrawObject <|-- BasePoint
+
+        class Point
+        BasePoint <|-- Point
+
+        class CalcPoint
+        BasePoint <|-- CalcPoint
+        CalcPoint *- CalcBuffer
+        CalcPoint *- CLGLEnv
+
+        class World
+        DrawNodeList <|-- World
+        World *-- MultiCube
+        World *-- Plane
+    }
+}
+
+@enduml

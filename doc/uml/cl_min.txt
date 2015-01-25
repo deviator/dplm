@@ -1,0 +1,48 @@
+@startuml
+
+package des.cl <<Frame>> {
+
+    class CLCommandQueue
+
+    CLCommandQueue *-- CLContext
+    CLCommandQueue *- CLDevice
+
+    class CLContext
+
+    CLContext *- CLPlatform
+    CLContext *-- CLDevice
+
+    class CLDevice
+
+    class CLEvent
+    CLEvent <|-- CLUserEvent
+
+    class CLKernel
+    CLKernel <.. CLMemoryHandler
+
+    class CLMemory
+
+    class CLPlatform
+
+    class CLProgram
+    CLProgram <. CLBuildOption
+
+    CLProgram *-- CLKernel
+    CLProgram *-- CLContext
+    CLProgram *-- CLDevice
+
+    interface CLBuildOption
+
+    interface CLMemoryHandler
+
+    package des.cl.gl <<Frame>> {
+        class CLGLContext
+        class CLGLMemory
+    }
+    CLMemoryHandler *- CLMemory
+
+    CLMemory <|-left- CLGLMemory
+    CLContext <|-- CLGLContext
+}
+
+@enduml

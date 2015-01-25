@@ -1,0 +1,41 @@
+@startuml
+
+package des.gl <<Frame>> {
+
+    class GLBuffer
+
+    class GLVAO
+
+    class GLObject
+    GLObject "1" *-- GLVAO
+
+    class GLRenderBuffer
+
+    class GLTexture
+
+    class GLFrameBuffer
+    GLFrameBuffer "0..N" *-- GLRenderBuffer : attachment
+    GLFrameBuffer "0..N" *-- GLTexture : attachment
+
+    class GLRender
+    GLRender "1" *-- GLFrameBuffer
+    GLRender "0..1" *-- GLTexture : depth or color
+    GLRender "0..1" *-- GLRenderBuffer : depth or color
+
+    class GLRenderToTex {
+        render all to textures
+    }
+
+    GLRender <|-- GLRenderToTex
+    GLVAO <.. GLBuffer
+
+    class GLShader
+    class GLShaderProgram
+
+    GLShaderProgram "0..N" *-- GLShader
+
+    class CommonGLShaderProgram
+    GLShaderProgram <|-- CommonGLShaderProgram
+}
+
+@enduml

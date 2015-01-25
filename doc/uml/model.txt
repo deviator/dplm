@@ -1,0 +1,147 @@
+@startuml
+
+package des.space <<Frame>> {
+    class SimpleCamera
+}
+
+package des.util.arch <<Frame>> {
+    class DesObject
+}
+
+package sim.model <<Frame>> {
+
+class UnitState <<struct>> {
+    +pos : vec3
+    +vel : vec3
+}
+
+class UnitParams <<struct>> {
+    +hflim : float 
+    +vfmin : float 
+    +vfmax : float 
+    +CxS   : float 
+    +mass  : float 
+    +cam   : UnitCameraParams 
+}
+
+class UnitCameraParams <<struct>> {
+    +fov : float
+    +near: float
+    +far : float
+    +res : uivec2
+    ----
+    +maxResultDist( float cell ) : float
+}
+
+UnitParams *-- UnitCameraParams
+
+class UnitCamera {
+    #params : UnitCameraParams
+    -- @property --
+    +resolution : uivec2 { get }
+    ----
+    +maxResultDist( float cell ) : float
+}
+
+SimpleCamera <|-- UnitCamera
+
+UnitCamera *-- UnitCameraParams
+
+class BaseUnit {
+    -- @property --
+    +state  : UnitState  
+    +params : UnitParams 
+    +camera : UnitCamera 
+    ----
+    +final process( float time, float dt ) : void
+    ----
+    #{abstract} logic( float time, float dt ) : void
+    #{abstract} controlForce( float time, float dt ) : vec3
+    #postProc() : void
+}
+
+BaseUnit *-- UnitCamera
+BaseUnit *-- UnitParams
+BaseUnit *- UnitState
+
+DesObject <|-- BaseUnit
+
+class UnitTrace <<struct>> {
+    +data : vec3[]
+    +min_dist : float
+    +max_count : float
+    ----
+    +append( in vec3 p ) : void
+    +reset() : void
+}
+
+class Unit {
+    #trg_point : vec3
+    #way_point : vec3
+    #near : fRay[]
+    #hist : UnitTrace
+    #pid : PID!vec3
+    -- @property --
+    +target : vec3 { set, get }
+    +wayPoint : vec3 { get }
+    +trace : ref const(UnitTrace) { get }
+    ----
+    +appendNear( in fRay[] d... ) : void
+    ----
+    #override logic( float time, float dt ) : void
+    #override postProc() : void
+    #override controlForce( float time, float dt ) : vec3
+}
+
+class PID <T> {
+    assert( hasBasicMathOp!T )
+    ==
+    #ibuf : T
+    #dbuf : T
+    --
+    +P : T
+    +I : T
+    +D : T
+    --
+    +opCall( in T v, float dt ) : T
+    --
+    #integral( in T v ) : T
+    #derivative( in T v, float dt ) : T
+}
+
+Unit *-- UnitTrace
+
+Unit *-- PID : PID!vec3
+
+BaseUnit <|-- Unit
+
+class ModelConfig <<struct>> {
+    + h : float
+    + unit_count : size_t
+    + camres : uivec2
+}
+
+class Model {
+    #time : float = 0
+    #unit_params : UnitParams
+    #cfg : ModelConfig
+    --
+    +units : Unit[]
+    -- @property --
+    +config : ref const(ModelConfig) { get }
+    --
+    +process() : void
+    --
+    #logic( float dt ) : void
+    #processDangers() : void
+}
+
+Model "*" *-- Unit
+Model *- UnitParams
+Model *-- ModelConfig
+
+DesObject <|-- Model
+    
+}
+
+@enduml

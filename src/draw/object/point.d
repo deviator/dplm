@@ -1,7 +1,6 @@
 module draw.object.point;
 
 public import draw.object.base;
-import compute;
 import des.util.logsys;
 import std.file;
 

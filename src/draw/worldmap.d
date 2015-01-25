@@ -9,7 +9,7 @@ import des.util.helpers;
 
 import draw.object.base;
 
-import compute;
+import draw.compute;
 
 class CLWorldMap : BaseDrawObject
 {

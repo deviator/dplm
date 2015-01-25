@@ -2,8 +2,10 @@ module draw.object.base;
 
 public import des.gl.simple;
 public import des.math.linear;
-public import draw.object.util;
 public import des.space;
+
+public import draw.object.util;
+public import draw.compute;
 
 import des.util.logsys;
 import std.stdio;

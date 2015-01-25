@@ -1,4 +1,4 @@
-module compute;
+module draw.compute;
 
 public import des.cl;
 public import des.cl.gl;

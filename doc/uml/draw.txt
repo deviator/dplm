@@ -1,0 +1,95 @@
+@startuml
+
+package des.gl <<Frame>> {
+    class GLBuffer
+    class GLRenderToTex
+}
+
+package des.cl <<Frame>> {
+    interface CLMemoryHandler
+    package des.cl.gl <<Frame>> {
+        class CLGLMemory
+    }
+}
+
+package sim.draw <<Frame>> {
+
+    class CLGLEnv {
+        +ctx : CLGLContext
+        +cmd : CLCommandQueue
+        +prog : CLProgram
+        --
+        +releaseAllToGL() : void
+    }
+
+    class CalcBuffer
+
+    GLBuffer <|- CalcBuffer
+
+    CLMemoryHandler <|. CalcBuffer
+
+    CalcBuffer *- CLGLMemory
+
+    class MCamera {
+        #orb : vec3
+        #rot : vec2
+        #rotate_coef : float = 80.0f
+        #offset_coef : float = 50.0f
+        #y_angle_limit : float = PI_2 - 0.01f
+        --
+        +mouseReaction( in MouseEvent ) : void
+        +keyReaction( in KeyboardEvent ) : void
+    }
+
+    class MainWindow {
+        -ctrl : Control
+        --
+        #override prepare() : void
+    }
+
+    class Control {
+        -env : CLGLEnv
+        -mdl : Model
+        -world : World
+        -worldmap : CLWorldMap
+        -draw_unit : DrawUnit
+        -ddot : CalcPoint
+        -trace : Line
+        -render : GLRenderToTex
+        -buf_depth : Image!2
+        -cam : MCamera
+        --
+        +idle() : void
+        +draw() : void
+        +quit() : void
+        +keyReaction( in KeyboardEvent ev ) : void
+        +mouseReaction( in MouseEvent ev ) : void
+        +resize( ivec2 sz ) : void
+    }
+
+    MainWindow *-- Control
+    Control *-- CLGLEnv
+    Control *-- MCamera
+    Control *-- GLRenderToTex
+
+    class CLWorldMap {
+        #env : CLGLEnv
+        #dmap : CalcBuffer
+        #near : CalcBuffer
+        #unitdepth : CalcBuffer
+        #unitpoints : CalcBuffer
+        #resolver : Resolver
+    }
+
+    CLWorldMap *-- Resolver
+    CLWorldMap *-- CalcBuffer
+    CLWorldMap *-- CLGLEnv
+
+    package sim.draw.object <<Frame>> {
+        class BaseDrawObject
+    }
+
+    BaseDrawObject <|-- CLWorldMap
+}
+
+@enduml

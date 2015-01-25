@@ -1,7 +1,6 @@
 module draw.object.line;
 
 public import draw.object.base;
-import compute;
 
 class Line : BaseDrawObject
 {

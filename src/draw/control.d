@@ -19,7 +19,7 @@ import draw.object.plane;
 import draw.object.line;
 import draw.worldmap;
 
-import compute;
+import draw.compute;
 
 class Control : DesObject
 {

@@ -1,0 +1,90 @@
+@startuml
+
+package des.cl <<Frame>> {
+
+    class CLCommandQueue {
+        +context : CLContext
+        +device : CLDevice
+        --
+        +flush() : void
+        +finish() : void
+        +barrier() : void
+    }
+
+    CLCommandQueue *-- CLContext
+    CLCommandQueue *-- CLDevice
+
+    class CLContext {
+        +platform : CLPlatform
+        +devices : CLDevice[]
+        --
+        +buildProgram( string source, CLBuildOption[] opt ) : CLProgram
+        +createQueue( CLCommandQueue.Properties[] prop, size_t dev ) : CLCommandQueue
+    }
+
+    CLContext *-- CLPlatform
+    CLContext *-- CLDevice
+
+    class CLDevice {
+        +{static} getAll( CLPlatform, Type ) : CLDevice[]
+    }
+
+    class CLEvent
+    CLEvent <|-- CLUserEvent
+
+    class CLKernel {
+        -- @property --
+        +name : string { get }
+        --
+        +setArgs(Args...)( Args args ) : void
+        +setQueue( CLCommandQueue ) : void
+        +exec( CLEvent[] wait_list ) : void
+    }
+    CLKernel <.. CLMemoryHandler
+
+    class CLMemory {
+        +{static}createBuffer( CLContext, Flag[], size_t size ) : CLMemory
+        +read( CLCommandQueue, size_t size, size_t offset ) : void[]
+        +write( CLCommandQueue, void[] buffer ) : void
+    }
+
+    class CLPlatform {
+        +devices : CLDevice[]
+        +{static} getAll() : CLPlatform[]
+    }
+
+    class CLProgram {
+        #last_build_devices : CLDevice[]
+        #ctx : CLContext
+        --
+        +kernel : CLKernel[string]
+        +{static} createWithSource( CLContext context, string source ) : CLProgram
+        +build( CLBuildOption[] ) : BuildInfo[]
+    }
+    CLProgram <. CLBuildOption
+
+    CLProgram *-- CLKernel
+    CLProgram *-- CLContext
+    CLProgram *-- CLDevice
+
+    interface CLBuildOption {
+        +toString() : string
+        +{static} define( string name, string val ) : CLBuildOption
+        +{static} dir( string name ) : CLBuildOption
+        +{static} inhibitAllWarningMessages() : CLBuildOption
+        +{static} makeAllWarningsIntoErrors() : CLBuildOption
+    }
+
+    interface CLMemoryHandler
+
+    package des.cl.gl <<Frame>> {
+        class CLGLContext
+        class CLGLMemory
+    }
+    CLMemoryHandler *- CLMemory
+
+    CLMemory <|-left- CLGLMemory
+    CLContext <|-- CLGLContext
+}
+
+@enduml
