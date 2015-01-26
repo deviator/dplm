@@ -1,0 +1,11 @@
+#use gnuplot -e "fname='exp'" plot
+
+set terminal pngcairo dashed size 1600,1200
+set style data lines
+set grid
+
+set output fname.'_pknown.png'
+plot fname using 'time':'pknown' lw 2 lt 1 lc rgb "red"
+
+set output fname.'_ts.png'
+plot fname using 'time':'ts' lw 2 lt 1 lc rgb "red"

@@ -139,7 +139,8 @@ kernel void updateMap( global MapElement* map,
 }
 
 kernel void estimate( global MapElement* map, const uint count,
-                      global uint* known, global MapElement* est )
+                      global uint* known, global MapElement* est,
+                      const float time )
 {
     int i = get_global_id(0);
     int sz = get_global_size(0);
@@ -152,19 +153,45 @@ kernel void estimate( global MapElement* map, const uint count,
 
     for( int j = 0; j < st; j++ )
     {
-        int m = map[i*st+j].meas;
+        int mi = i*st+j;
+        int m = map[mi].meas;
         if( m > 0 )
         {
             known[i]++;
             est[i].meas += m;
-            est[i].ts += map[i*st+j].ts;
-            est[i].val += map[i*st+j].val;
+            est[i].ts += time - map[mi].ts;
+            est[i].val += map[mi].val;
         }
     }
 }
 
-kernel void nearfind( global float* map, const uint4 esize,
-                      const uint count, const uint8 volume, global float4* near )
+kernel void variance( global MapElement* map, const uint count,
+                      const float4 est, global float4* var,
+                      const float time )
+{
+    int i = get_global_id(0);
+    int sz = get_global_size(0);
+    int st = count / sz;
+
+    var[i] = (float4)(0);
+
+    for( int j = 0; j < st; j++ )
+    {
+        int mi = i*st+j;
+        int m = map[mi].meas;
+        if( m > 0 )
+        {
+            var[i].s0 += pow( est.s0 - m, 2 );
+            var[i].s1 += pow( est.s1 - (time - map[mi].ts), 2 );
+            var[i].s2 += pow( est.s2 - map[mi].val.x, 2 );
+            var[i].s3 += pow( est.s3 - map[mi].val.y, 2 );
+        }
+    }
+}
+
+kernel void getVolume( global MapElement* map, const uint4 esize,
+                       global MapElement* vol, const uint8 volume,
+                       const uint count )
 {
     int i = get_global_id(0);
     int sz = get_global_size(0);
@@ -178,8 +205,6 @@ kernel void nearfind( global float* map, const uint4 esize,
     {
         uint3 crd = vpos + coordinate( vsize, i );
         if( inRegionI( msize, crd ) )
-            near[i] = (float4)( crd.x, crd.y, crd.z, map[index(msize,crd)] );
-        else
-            near[i] = (float4)(0);
+            vol[i] = map[index(msize,crd)];
     }
 }

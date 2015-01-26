@@ -4,14 +4,17 @@ import std.stdio;
 import std.conv;
 
 import des.space;
-import des.il.region;
 import des.util.helpers;
 
 import draw.object.base;
 
 import draw.compute;
 
-class CLWorldMap : BaseDrawObject
+import model.mapaccess;
+
+import std.conv : to;
+
+class CLWorldMap : BaseDrawObject, MapAccess
 {
 protected:
 
@@ -19,7 +22,9 @@ protected:
 
     CalcBuffer dmap;
 
-    CalcBuffer near;
+    MapElement[] map_init;
+
+    CalcBuffer mapreg;
 
     alias Vector!(8,uint) VolumeData;
 
@@ -46,7 +51,7 @@ protected:
     CalcBuffer unitdepth, unitpoints;
 
     size_t est_step = 1024;
-    CalcBuffer known, estres;
+    CalcBuffer known, estres, varres;
 
     uivec2 unitcamres;
     size_t unitcount;
@@ -107,28 +112,21 @@ public:
         env.releaseAllToGL();
     }
 
-    struct Element
-    {
-        uint meas = 0;
-        float ts = 0;
-        vec2 val;
-    }
-
     struct Estimate
     {
         float time = 0;
         uint known;
         float pknown = 0;
-        float meas = 0;
-        float ts = 0;
-        vec2 val;
+        float[2] meas = [0,0];
+        float[2] ts = [0,0];
+        vec2[2] val;
     }
 
     auto estimate()
     {
         env.prog.kernel["estimate"]( [est_step], [32],
                 dmap, cast(uint)dmap.elementCount,
-                known, estres );
+                known, estres, cur_time );
         env.releaseAllToGL();
 
         int fknown = 0;
@@ -138,7 +136,7 @@ public:
         known.bind();
         auto buf_known = getTypedArray!uint( est_step, known.map() );
         estres.bind();
-        auto buf_ests = getTypedArray!Element( est_step, estres.map() );
+        auto buf_ests = getTypedArray!MapElement( est_step, estres.map() );
 
         Estimate te;
         te.time = cur_time;
@@ -147,9 +145,9 @@ public:
         {
             fknown += buf_known[i];
 
-            te.meas += buf_ests[i].meas;
-            te.ts += buf_ests[i].ts;
-            te.val += buf_ests[i].val;
+            te.meas[0] += buf_ests[i].meas;
+            te.ts[0] += buf_ests[i].ts;
+            te.val[0] += buf_ests[i].val;
         }
 
         known.bind(); known.unmap();
@@ -157,9 +155,32 @@ public:
 
         te.known = fknown;
         te.pknown = fknown / cast(float)( dmap.elementCount );
-        te.meas /= fknown;
-        te.ts /= fknown;
-        te.val /= fknown;
+
+        te.meas[0] /= fknown;
+        te.ts[0] /= fknown;
+        te.val[0] /= fknown;
+
+        env.prog.kernel["variance"]( [est_step], [32],
+                dmap, cast(uint)dmap.elementCount,
+                vec4( te.meas[0], te.ts[0], te.val[0] ), varres,
+                cur_time );
+        env.releaseAllToGL();
+
+        varres.bind();
+        auto buf_vars = getTypedArray!vec4( est_step, varres.map() );
+
+        foreach( i; 0 .. est_step )
+        {
+            te.meas[1] += buf_vars[i].x;
+            te.ts[1] += buf_vars[i].y;
+            te.val[1] += vec2( buf_vars[i].zw );
+        }
+
+        varres.bind(); varres.unmap();
+
+        te.meas[1] /= fknown - 1;
+        te.ts[1] /= fknown - 1;
+        te.val[1] /= fknown - 1;
 
         return te;
     }
@@ -173,73 +194,28 @@ public:
 
     void process() { }
 
+    void setUnitCount( size_t cnt ) { unitcount = cnt; }
     void setUnitCamResolution( in uivec2 cr ) { unitcamres = cr; }
 
-    void setUnitCount( size_t cnt ) { unitcount = cnt; }
-
-    vec4[] getPoints( in vec3 pos, float dst )
+    MapRegion getRegion( in fRegion3 reg )
     {
-        auto m = matrix.inv;
+        auto img_reg = iRegion3( trRegion( matrix.inv, reg ) );
+        auto map_reg = iRegion3( ivec3(0), mres );
 
-        auto vol = getRegion( m, pos, dst );
-        auto count = vol.size.x * vol.size.y * vol.size.z;
+        auto ov_reg = map_reg.overlap( img_reg );
 
-        if( count == 0 ) return [];
-
-        uint[8] volume = [
-            cast(uint)vol.pos.x,
-            cast(uint)vol.pos.y,
-            cast(uint)vol.pos.z,
-            0,
-            cast(uint)vol.size.x,
-            cast(uint)vol.size.y,
-            cast(uint)vol.size.z,
-            0
-        ];
-
-        near.setData( new vec4[](count) );
-
-        env.prog.kernel["nearfind"]( [32], [8],
-                                     dmap, uivec4( mres, 0 ),
-                            cast(uint)count, volume, near );
-
-        env.releaseAllToGL();
-
-        auto nearbuf = near.getData!vec4;
-
-        vec4[] ret;
-        foreach( n; nearbuf )
-            ret ~= vec4( (matrix * vec4(n.xyz,1)).xyz, n.w );
-
-        return ret;
+        return MapRegion( trRegion( matrix, fRegion3( ov_reg ) ),
+                          Image3( ov_reg.size,
+                                  ElemInfo( DataType.RAWBYTE, MapElement.sizeof ),
+                                  getMapData( ov_reg ) ) );
     }
 
-    vec3 nearestVolume( in vec3 pos )
+    @property
     {
-        auto mpos = ( matrix.inv * vec4( pos, 1 ) ).xyz;
-        foreach( i; 0 .. 3 )
-        {
-            if( mpos[i] < 0 ) mpos[i] = -mpos[i];
-            else if( mpos[i] >= mres[i] ) mpos[i] = mres[i] - mpos[i];
-            else mpos[i] = 0;
-        }
-        return vec3( (matrix * vec4(mpos,0)).xyz );
+        ivec3 size() const { return mres; }
+        vec3 cellSize() const 
+        { return vec3( (matrix * vec4(1,1,1,0)).xyz ); }
     }
-
-    protected auto getRegion( in mat4 m, in vec3 pos, float dst )
-    {
-        auto pmin = ivec3( (m * vec4( pos - vec3(dst), 1 ) ).xyz );
-        auto size = ivec3( (m * vec4( vec3(dst) * 2, 0 ) ).xyz );
-
-        auto dvol = iRegion3( ivec3(0), mres );
-        auto cvol = iRegion3( pmin, size );
-
-        return dvol.overlap( cvol );
-    }
-
-    @property ivec3 size() const { return mres; }
-    @property vec3 cellSize() const 
-    { return vec3( (matrix * vec4(1,1,1,0)).xyz ); }
 
     override void draw( Camera cam )
     {
@@ -258,6 +234,32 @@ public:
 
 protected:
 
+    void[] getMapData( in iRegion3 vol )
+    {
+        auto count = cast(uint)( vol.size.x * vol.size.y * vol.size.z );
+
+        if( count == 0 ) return [];
+        
+        uint[8] volume = to!(uint[])(vol.pos.data) ~ 0 ~
+                         to!(uint[])(vol.size.data) ~ 0;
+
+        mapreg.setData( map_init[0..count] );
+
+        env.prog.kernel["getVolume"]( [32], [8],
+                dmap, uivec4( mres, 0 ),
+                mapreg, volume, count );
+
+        env.releaseAllToGL();
+
+        return mapreg.getUntypedData();
+    }
+
+    static fRegion3 trRegion( in mat4 m, in fRegion3 reg )
+    {
+        return fRegion3( ( m * vec4( reg.pos, 1 ) ).xyz,
+                         ( m * vec4( reg.size, 0 ) ).xyz );
+    }
+
     override void prepareBuffers()
     {
         auto cnt = mres.x * mres.y * mres.z;
@@ -266,19 +268,22 @@ protected:
         connect( dmap.elementCountCB, &setDrawCount );
 
         auto loc = shader.getAttribLocations( "meas", "ts", "val" );
-        setAttribPointer( dmap, loc[0], 1, GLType.UNSIGNED_INT, Element.sizeof, 0 );
-        setAttribPointer( dmap, loc[1], 1, GLType.FLOAT, Element.sizeof, Element.ts.offsetof );
-        setAttribPointer( dmap, loc[2], 2, GLType.FLOAT, Element.sizeof, Element.val.offsetof );
-        dmap.setData( new Element[](cnt) );
+        setAttribPointer( dmap, loc[0], 1, GLType.UNSIGNED_INT, MapElement.sizeof, 0 );
+        setAttribPointer( dmap, loc[1], 1, GLType.FLOAT, MapElement.sizeof, MapElement.ts.offsetof );
+        setAttribPointer( dmap, loc[2], 2, GLType.FLOAT, MapElement.sizeof, MapElement.val.offsetof );
+        map_init = new MapElement[]( cnt );
+        dmap.setData( map_init );
 
         unitdepth = newCalcBuffer();
 
-        near = newCalcBuffer();
+        mapreg = newCalcBuffer();
 
         known = newCalcBuffer();
         known.setData( new uint[](est_step) );
         estres = newCalcBuffer();
-        estres.setData( new Element[](est_step) );
+        estres.setData( new MapElement[](est_step) );
+        varres = newCalcBuffer();
+        varres.setData( new vec4[](est_step) );
     }
 
     CalcBuffer newCalcBuffer() { return newEMM!CalcBuffer( env ); }

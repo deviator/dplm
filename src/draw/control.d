@@ -21,6 +21,8 @@ import draw.worldmap;
 
 import draw.compute;
 
+import std.stdio : File;
+
 class Control : DesObject
 {
     mixin DES;
@@ -49,6 +51,8 @@ private:
 
     bool draw_world_in_view = true;
 
+    File output;
+
 public:
 
     this()
@@ -64,7 +68,7 @@ public:
         worldmap = newEMM!CLWorldMap( env, ivec3(200,200,50), vec3(1), ddot.cdata );
         worldmap.needDraw = false;
 
-        mdl = newEMM!Model( ModelConfig( 0.05f, 10 ) );
+        mdl = newEMM!Model( ModelConfig( 0.05f, 50 ), worldmap );
 
         worldmap.setUnitCount( mdl.units.length );
         worldmap.setUnitCamResolution( mdl.config.camres );
@@ -81,6 +85,8 @@ public:
         track.color = col4(0,1,0,1);
 
         logger.trace( "create control complite" );
+
+        openOutput();
     }
 
     void idle()
@@ -96,7 +102,7 @@ public:
         if( model_proc )
         {
             modelProcess();
-            logger.Debug( worldmap.estimate() );
+            writeEstimate();
         }
     }
 
@@ -113,7 +119,10 @@ public:
         worldmap.draw( cam );
     }
 
-    void quit() { }
+    void quit()
+    {
+        output.close();
+    }
 
     void keyReaction( in KeyboardEvent ev )
     {
@@ -161,6 +170,21 @@ protected:
         }
         mdl.process();
         worldmap.process();
+    }
+
+    void openOutput()
+    {
+        import des.util.helpers;
+        output.open( appPath( "..", "data", "result", "exp" ), "w" );
+        output.writeln( "time pknown ts" );
+    }
+
+    void writeEstimate()
+    {
+        auto e = worldmap.estimate();
+        logger.warn( "sim time: ", e.time );
+        if( !output.isOpen ) return;
+        output.writeln( e.time, " ", e.pknown, " ", e.ts[0] );
     }
 
     void drawUnit( Unit unit )

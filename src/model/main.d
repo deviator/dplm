@@ -6,6 +6,7 @@ import std.random;
 import des.math.linear;
 import des.util.arch;
 
+import model.mapaccess;
 import model.unit;
 
 struct ModelConfig
@@ -31,14 +32,17 @@ protected:
     UnitParams unit_params;
 
     ModelConfig cfg;
+    MapAccess map;
 
 public:
 
     Unit[] units;
 
-    this( ModelConfig cfg )
+    this( ModelConfig cfg, MapAccess map )
+    in { assert( map !is null ); } body
     {
         this.cfg = cfg;
+        this.map = map;
         createUnits();
     }
 
@@ -77,7 +81,7 @@ protected:
             vfmin = -20;
             vfmax = 60;
 
-            CxS = 0.15;
+            CxS = 0.5;
             mass = 0.5;
 
             cam.fov = 90;
@@ -114,10 +118,13 @@ protected:
     {
         auto s = vec3(0,0,80) + rndPos(5);
         vec3[3] pid = [ vec3(3), vec3(0), vec3(1) ];
-        auto buf = newEMM!Unit( UnitState( s, vec3(0) ), unit_params, pid );
+        auto buf = newUnit( UnitState( s, vec3(0) ), unit_params, map, pid );
         buf.target = s + rndPos(0.1);
         return buf;
     }
+
+    Unit newUnit( UnitState i, UnitParams p, MapAccess m, vec3[3] pid )
+    { return newEMM!AutoRndTargetUnit( i, p, m, pid ); }
 
     vec3 rndPos( float dst )
     {

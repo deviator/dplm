@@ -1,0 +1,14 @@
+#use gnuplot -e "fn1='exp1'; fn2='exp2'" plot
+
+set terminal pngcairo dashed size 1600,1200
+set style data lines
+set grid
+
+set output fn1.'_'.fn2.'_pknown.png'
+plot fn1 using 'time':'pknown' lw 2 lt 1 lc rgb "red",\
+     fn2 using 'time':'pknown' lw 2 lt 1 lc rgb "blue"
+
+set output fn1.'_'.fn2.'_ts.png'
+plot fn1 using 'time':'ts' lw 2 lt 1 lc rgb "red",\
+     fn2 using 'time':'ts' lw 2 lt 1 lc rgb "blue"
+
