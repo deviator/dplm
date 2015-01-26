@@ -112,6 +112,21 @@ kernel void updateMap( global float* map, const uint4 esize,
     }
 }
 
+int isKnown( float val ) { return val == val ? 1 : 0; }
+
+kernel void estimateKnown( global float* map, global int* known, const uint count )
+{
+    int i = get_global_id(0);
+    int sz = get_global_size(0);
+
+    for( ; i < count / sz; i++ )
+    {
+        known[i] = 0;
+        for( int j = 0; j < sz && i*sz+j < count; j++ )
+            known[i] += isKnown( map[i*sz+j] );
+    }
+}
+
 kernel void nearfind( global float* map, const uint4 esize,
                       const uint count, const uint8 volume, global float4* near )
 {

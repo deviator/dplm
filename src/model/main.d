@@ -26,7 +26,7 @@ class Model : DesObject
 {
 protected:
 
-    float time = 0;
+    float tm = 0;
     
     UnitParams unit_params;
 
@@ -42,14 +42,16 @@ public:
         createUnits();
     }
 
+    float time() const @property { return tm; }
+
     ref const(ModelConfig) config() const @property { return cfg; }
 
     void process()
     {
-        time += cfg.h;
+        tm += cfg.h;
         logic( cfg.h );
         foreach( unit; units )
-            unit.process( time, cfg.h );
+            unit.process( tm, cfg.h );
     }
 
     void randomizeTargets()

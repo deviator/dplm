@@ -93,7 +93,11 @@ public:
         //        cam.target = mdl.units[$-1].pos;
         //}
 
-        if( model_proc ) modelProcess();
+        if( model_proc )
+        {
+            modelProcess();
+            std.stdio.stderr.writeln( getMapEstimate() );
+        }
     }
 
     void draw()
@@ -175,5 +179,16 @@ protected:
 
         track.set( unit.trace.data );
         track.draw( cam );
+    }
+
+    struct Estimate
+    {
+        float time;
+        float pknown;
+    }
+
+    Estimate getMapEstimate()
+    {
+        return Estimate( mdl.time, worldmap.estimateKnown() );
     }
 }

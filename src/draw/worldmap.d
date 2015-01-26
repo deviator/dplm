@@ -44,6 +44,7 @@ protected:
     }
 
     CalcBuffer unitdepth, unitpoints;
+    CalcBuffer estres;
 
     uivec2 unitcamres;
     size_t unitcount;
@@ -96,7 +97,29 @@ public:
                                       uivec2( unitcamres ),
                                       unitpoints, matrix.inv );
 
+        //env.prog.kernel["estimateKnown"]( [1024], [32],
+        //                                  dmap, cast(uint)dmap.elementCount,
+        //                                  estres );
+
         env.releaseAllToGL();
+
+        //int cc = 0;
+        //foreach( v; estres.getData!int ) cc += v;
+        //estimate_known = cc / cast(float)( dmap.elementCount );
+    }
+
+    float estimate_known;
+
+    float estimateKnown()
+    {
+        env.prog.kernel["estimateKnown"]( [1024], [32],
+                dmap, estres, cast(uint)dmap.elementCount );
+        env.releaseAllToGL();
+        int cc = 0;
+        foreach( v; estres.getData!int ) cc += v;
+        return cc / cast(float)( dmap.elementCount );
+
+        ///return estimate_known;
     }
 
     protected void updateUnitData()
@@ -196,17 +219,22 @@ protected:
     {
         auto cnt = mres.x * mres.y * mres.z;
 
-        dmap = newEMM!CalcBuffer( env );
+        dmap = newCalcBuffer();
         connect( dmap.elementCountCB, &setDrawCount );
 
         auto loc = shader.getAttribLocation( "data" );
         setAttribPointer( dmap, loc, 1, GLType.FLOAT );
         dmap.setData( new float[](cnt) );
 
-        unitdepth = newEMM!CalcBuffer( env );
+        unitdepth = newCalcBuffer();
 
-        near = newEMM!CalcBuffer( env );
+        near = newCalcBuffer();
+
+        estres = newCalcBuffer();
+        estres.setData( new int[](1024) );
     }
+
+    CalcBuffer newCalcBuffer() { return newEMM!CalcBuffer( env ); }
 
     mat4 resolve( SpaceNode obj ) { return resolver( obj, null ); }
 }
