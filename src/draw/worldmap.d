@@ -115,11 +115,11 @@ public:
         env.prog.kernel["estimateKnown"]( [1024], [32],
                 dmap, estres, cast(uint)dmap.elementCount );
         env.releaseAllToGL();
-        int cc = 0;
-        foreach( v; estres.getData!int ) cc += v;
-        return cc / cast(float)( dmap.elementCount );
 
-        ///return estimate_known;
+        int cc = 0;
+        auto est = estres.getData!int;
+        foreach( v; est ) cc += v;
+        return cc / cast(float)( dmap.elementCount );
     }
 
     protected void updateUnitData()

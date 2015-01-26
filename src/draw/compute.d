@@ -20,7 +20,11 @@ class CLGLEnv : DesObject
 
         prog.build();
 
-        foreach( k; prog.kernel ) k.setQueue( cmd );
+        foreach( k; prog.kernel )
+        {
+            logger.info( k.name );
+            k.setQueue( cmd );
+        }
     }
 
     void releaseAllToGL() { ctx.releaseAllToGL( cmd ); }

@@ -118,13 +118,12 @@ kernel void estimateKnown( global float* map, global int* known, const uint coun
 {
     int i = get_global_id(0);
     int sz = get_global_size(0);
+    int st = count / sz;
 
-    for( ; i < count / sz; i++ )
-    {
-        known[i] = 0;
-        for( int j = 0; j < sz && i*sz+j < count; j++ )
-            known[i] += isKnown( map[i*sz+j] );
-    }
+    known[i] = 0;
+
+    for( int j = 0; j < st; j++ )
+        known[i] += isKnown( map[i*st+j] );
 }
 
 kernel void nearfind( global float* map, const uint4 esize,

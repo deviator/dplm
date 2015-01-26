@@ -96,7 +96,7 @@ public:
         if( model_proc )
         {
             modelProcess();
-            std.stdio.stderr.writeln( getMapEstimate() );
+            logger.Debug( getMapEstimate() );
         }
     }
 
