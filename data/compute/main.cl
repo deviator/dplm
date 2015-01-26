@@ -1,3 +1,21 @@
+typedef struct
+{
+    uint meas;
+    float ts;
+    float2 val
+} MapElement;
+
+//inline void setValue( global MapElement* me, float time, float val, float weight )
+inline void setValue( global MapElement* me, float time, float val )
+{
+    me->ts = time;
+    if( me->meas == 0 || me->val.x < val ) me->val.x = val;
+    //if( me->meas == 0 ) me->val.x = val;
+    //else me->val.x = me->val.x * ( 1 - weight ) +
+    //    ( me->val.x * me->meas + val ) * weight / ( me->meas + 1 );
+    me->meas++;
+}
+
 inline float4 mlt( const float16 m, float4 v )
 {
     return (float4)( dot( m.s0123, v ),
@@ -73,11 +91,14 @@ kernel void depthToPoint( global float* depth,
     }
 }
 
-kernel void updateMap( global float* map, const uint4 esize,
+kernel void updateMap( global MapElement* map,
+                       const uint4 esize,
                        const uint unitid,
+                       const float time,
                        const float4 ud_pos,
                        const uint2 camres,
-                       global float4* points, const float16 tomap )
+                       global float4* points,
+                       const float16 tomap )
 {
     int i = get_global_id(0);
     int sz = get_global_size(0);
@@ -102,28 +123,44 @@ kernel void updateMap( global float* map, const uint4 esize,
         {
             float3 v = a + fstep * j;
 
-            uint mapind = index(size,(uint3)(v.x,v.y,v.z));
-            if( inRegionF(size,v) && map[mapind] != map[mapind] )
-                map[mapind] = 0;
+            if( inRegionF( size, v ) )
+            {
+                uint k = index(size,(uint3)(v.x,v.y,v.z));
+                setValue( map+k, time, 0 );
+            }
         }
 
         if( inRegionF( size, b ) && bg.w > 0 )
-            map[index( size, (uint3)( b.x, b.y, b.z ) )] = 1;
+        {
+            uint k = index( size, (uint3)( b.x, b.y, b.z ) );
+            setValue( map+k, time, 1 );
+        }
     }
 }
 
-int isKnown( float val ) { return val == val ? 1 : 0; }
-
-kernel void estimateKnown( global float* map, global int* known, const uint count )
+kernel void estimate( global MapElement* map, const uint count,
+                      global uint* known, global MapElement* est )
 {
     int i = get_global_id(0);
     int sz = get_global_size(0);
     int st = count / sz;
 
     known[i] = 0;
+    est[i].meas = 0;
+    est[i].ts = 0;
+    est[i].val = 0;
 
     for( int j = 0; j < st; j++ )
-        known[i] += isKnown( map[i*st+j] );
+    {
+        int m = map[i*st+j].meas;
+        if( m > 0 )
+        {
+            known[i]++;
+            est[i].meas += m;
+            est[i].ts += map[i*st+j].ts;
+            est[i].val += map[i*st+j].val;
+        }
+    }
 }
 
 kernel void nearfind( global float* map, const uint4 esize,

@@ -115,7 +115,7 @@ protected:
         auto s = vec3(0,0,80) + rndPos(5);
         vec3[3] pid = [ vec3(3), vec3(0), vec3(1) ];
         auto buf = newEMM!Unit( UnitState( s, vec3(0) ), unit_params, pid );
-        buf.target = s;
+        buf.target = s + rndPos(0.1);
         return buf;
     }
 

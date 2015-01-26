@@ -44,12 +44,16 @@ protected:
     }
 
     CalcBuffer unitdepth, unitpoints;
-    CalcBuffer estres;
+
+    size_t est_step = 1024;
+    CalcBuffer known, estres;
 
     uivec2 unitcamres;
     size_t unitcount;
 
     Resolver resolver;
+
+    float cur_time;
 
 public:
 
@@ -73,6 +77,8 @@ public:
         resolver = new Resolver;
     }
 
+    void setTime( float tm ) { cur_time = tm; }
+
     void updateMap( size_t unitid, SimpleCamera cam, in float[] depth )
     {
         auto transform = resolve( cam );
@@ -93,33 +99,69 @@ public:
         env.prog.kernel["updateMap"]( [1024], [32],
                                       dmap, uivec4( mres, 0 ),
                                       cast(uint)unitid,
+                                      cur_time,
                                       vec4( pos, cam.far ),
                                       uivec2( unitcamres ),
                                       unitpoints, matrix.inv );
 
-        //env.prog.kernel["estimateKnown"]( [1024], [32],
-        //                                  dmap, cast(uint)dmap.elementCount,
-        //                                  estres );
-
         env.releaseAllToGL();
-
-        //int cc = 0;
-        //foreach( v; estres.getData!int ) cc += v;
-        //estimate_known = cc / cast(float)( dmap.elementCount );
     }
 
-    float estimate_known;
-
-    float estimateKnown()
+    struct Element
     {
-        env.prog.kernel["estimateKnown"]( [1024], [32],
-                dmap, estres, cast(uint)dmap.elementCount );
+        uint meas = 0;
+        float ts = 0;
+        vec2 val;
+    }
+
+    struct Estimate
+    {
+        float time = 0;
+        uint known;
+        float pknown = 0;
+        float meas = 0;
+        float ts = 0;
+        vec2 val;
+    }
+
+    auto estimate()
+    {
+        env.prog.kernel["estimate"]( [est_step], [32],
+                dmap, cast(uint)dmap.elementCount,
+                known, estres );
         env.releaseAllToGL();
 
-        int cc = 0;
-        auto est = estres.getData!int;
-        foreach( v; est ) cc += v;
-        return cc / cast(float)( dmap.elementCount );
+        int fknown = 0;
+
+        import des.util.data;
+
+        known.bind();
+        auto buf_known = getTypedArray!uint( est_step, known.map() );
+        estres.bind();
+        auto buf_ests = getTypedArray!Element( est_step, estres.map() );
+
+        Estimate te;
+        te.time = cur_time;
+
+        foreach( i; 0 .. est_step )
+        {
+            fknown += buf_known[i];
+
+            te.meas += buf_ests[i].meas;
+            te.ts += buf_ests[i].ts;
+            te.val += buf_ests[i].val;
+        }
+
+        known.bind(); known.unmap();
+        estres.bind(); estres.unmap();
+
+        te.known = fknown;
+        te.pknown = fknown / cast(float)( dmap.elementCount );
+        te.meas /= fknown;
+        te.ts /= fknown;
+        te.val /= fknown;
+
+        return te;
     }
 
     protected void updateUnitData()
@@ -204,6 +246,7 @@ public:
         shader.setUniform!mat4( "prj", cam.projection.matrix * cam.resolve(this) );
         shader.setUniform!int( "size_x", cast(int)mres.x );
         shader.setUniform!int( "size_y", cast(int)mres.y );
+        shader.setUniform!float( "time", cur_time );
         //shader.setUniform!float( "psize", 0.03 );
 
         glEnable( GL_PROGRAM_POINT_SIZE );
@@ -222,16 +265,20 @@ protected:
         dmap = newCalcBuffer();
         connect( dmap.elementCountCB, &setDrawCount );
 
-        auto loc = shader.getAttribLocation( "data" );
-        setAttribPointer( dmap, loc, 1, GLType.FLOAT );
-        dmap.setData( new float[](cnt) );
+        auto loc = shader.getAttribLocations( "meas", "ts", "val" );
+        setAttribPointer( dmap, loc[0], 1, GLType.UNSIGNED_INT, Element.sizeof, 0 );
+        setAttribPointer( dmap, loc[1], 1, GLType.FLOAT, Element.sizeof, Element.ts.offsetof );
+        setAttribPointer( dmap, loc[2], 2, GLType.FLOAT, Element.sizeof, Element.val.offsetof );
+        dmap.setData( new Element[](cnt) );
 
         unitdepth = newCalcBuffer();
 
         near = newCalcBuffer();
 
+        known = newCalcBuffer();
+        known.setData( new uint[](est_step) );
         estres = newCalcBuffer();
-        estres.setData( new int[](1024) );
+        estres.setData( new Element[](est_step) );
     }
 
     CalcBuffer newCalcBuffer() { return newEMM!CalcBuffer( env ); }

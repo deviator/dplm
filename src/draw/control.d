@@ -96,7 +96,7 @@ public:
         if( model_proc )
         {
             modelProcess();
-            logger.Debug( getMapEstimate() );
+            logger.Debug( worldmap.estimate() );
         }
     }
 
@@ -148,6 +148,7 @@ protected:
 
     void modelProcess()
     {
+        worldmap.setTime( mdl.time );
         foreach( i, u; mdl.units )
         {
             render( u.camera.resolution,
@@ -179,16 +180,5 @@ protected:
 
         track.set( unit.trace.data );
         track.draw( cam );
-    }
-
-    struct Estimate
-    {
-        float time;
-        float pknown;
-    }
-
-    Estimate getMapEstimate()
-    {
-        return Estimate( mdl.time, worldmap.estimateKnown() );
     }
 }
