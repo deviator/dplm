@@ -1,39 +1,11 @@
 @startuml
 
-package des.space <<Frame>> {
-    class SimpleCamera
-}
-
-package des.util.arch <<Frame>> {
-    class DesObject
-}
-
 package sim.model <<Frame>> {
 
 class UnitState <<struct>> {
     +pos : vec3
     +vel : vec3
 }
-
-class UnitParams <<struct>> {
-    +hflim : float 
-    +vfmin : float 
-    +vfmax : float 
-    +CxS   : float 
-    +mass  : float 
-    +cam   : UnitCameraParams 
-}
-
-class UnitCameraParams <<struct>> {
-    +fov : float
-    +near: float
-    +far : float
-    +res : uivec2
-    ----
-    +maxResultDist( float cell ) : float
-}
-
-UnitParams *-- UnitCameraParams
 
 class UnitCamera {
     #params : UnitCameraParams
@@ -42,10 +14,6 @@ class UnitCamera {
     ----
     +maxResultDist( float cell ) : float
 }
-
-SimpleCamera <|-- UnitCamera
-
-UnitCamera *-- UnitCameraParams
 
 class BaseUnit {
     -- @property --
@@ -61,10 +29,7 @@ class BaseUnit {
 }
 
 BaseUnit *-- UnitCamera
-BaseUnit *-- UnitParams
 BaseUnit *- UnitState
-
-DesObject <|-- BaseUnit
 
 class UnitTrace <<struct>> {
     +data : vec3[]
@@ -75,12 +40,27 @@ class UnitTrace <<struct>> {
     +reset() : void
 }
 
+class MapRegion <<struct>> {
+    fRegion3 reg;
+    Image3 img;
+    --
+    vec3 toWorld( ivec3 crd )
+    vec3 toWorld( size_t ind )
+}
+
+interface MapAccess {
+    MapRegion getRegion( in fRegion3 )
+}
+
+MapAccess <.. MapRegion
+
 class Unit {
     #trg_point : vec3
     #way_point : vec3
     #near : fRay[]
     #hist : UnitTrace
     #pid : PID!vec3
+    #map : MapAccess
     -- @property --
     +target : vec3 { set, get }
     +wayPoint : vec3 { get }
@@ -92,6 +72,35 @@ class Unit {
     #override postProc() : void
     #override controlForce( float time, float dt ) : vec3
 }
+
+Unit "1" *-- MapAccess
+
+class AutoTargetUnit {
+    #override logic( float time, float dt ) : void
+    #retargetLogic() : void
+    #needNewTarget() : bool
+    #{abstract} choiseTarget() : void
+}
+
+Unit <|-- AutoTargetUnit
+
+class RndTargetUnit {
+    #override choiseTarget() : void
+}
+
+AutoTargetUnit <|-- RndTargetUnit
+
+class FindTargetUnit {
+    #override choiseTarget() : void
+}
+
+AutoTargetUnit <|-- FindTargetUnit
+
+class SerialTargetUnit {
+    #override choiseTarget() : void
+}
+
+AutoTargetUnit <|-- SerialTargetUnit
 
 class PID <T> {
     assert( hasBasicMathOp!T )
@@ -137,10 +146,7 @@ class Model {
 }
 
 Model "*" *-- Unit
-Model *- UnitParams
 Model *-- ModelConfig
-
-DesObject <|-- Model
     
 }
 

@@ -23,11 +23,11 @@ struct MapRegion
     Image3 img;
 
     ///
-    vec3 toWorld( ivec3 crd ) pure
+    vec3 toWorld( ivec3 crd ) const pure
     { return vec3( reg.pos + reg.size * vec3(crd) / vec3(img.size) ); }
 
     ///
-    vec3 toWorld( size_t ind ) pure
+    vec3 toWorld( size_t ind ) const pure
     { return toWorld( ivec3( getCoord( img.size, ind ) ) ); }
 }
 
