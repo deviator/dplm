@@ -5,6 +5,9 @@ import std.range;
 import std.typecons;
 import std.algorithm;
 
+import std.stdio;
+import std.random;
+
 import des.math.linear;
 import des.math.basic;
 import des.space;
@@ -17,8 +20,6 @@ import des.util.logsys;
 import model.mapaccess;
 import model.pid;
 import model.camera;
-
-import std.stdio;
 
 /// phase vector (has basic math op)
 struct UnitState
@@ -255,13 +256,6 @@ protected:
 
     void calcWayPoint()
     {
-        // сначала двигаемся к карте
-        //if( nv.len2 > 0.001 )
-        //{
-        //    way_point = pos + nv;
-        //    return;
-        //}
-
         way_point = trg_point;
     }
 
@@ -290,7 +284,7 @@ protected:
     }
 }
 
-class AutoRndTargetUnit : Unit
+class AutoTargetUnit : Unit
 {
     this( UnitState initial, UnitParams prms, MapAccess map, vec3[3] pp )
     in { assert( map !is null ); } body
@@ -300,17 +294,24 @@ protected:
 
     override void logic( float t, float dt )
     {
-        if( needRndTarget() ) rndTarget();
+        retargetLogic();
         super.logic( t, dt );
     }
 
     size_t skip_rnd;
     size_t est_cnt = 20;
 
-    bool needRndTarget()
+    void retargetLogic()
+    {
+        skip_rnd++;
+        if( !needNewTarget() || skip_rnd < est_cnt ) return;
+        skip_rnd = 0;
+        choiseTarget();
+    }
+
+    bool needNewTarget()
     {
         float min_var = 5;
-        skip_rnd++;
 
         if( hist.data.length < est_cnt )
             return false;
@@ -328,13 +329,126 @@ protected:
         return var < min_var;
     }
 
-    void rndTarget()
-    {
-        if( skip_rnd < est_cnt ) return;
-        skip_rnd = 0;
+    abstract void choiseTarget();
+}
 
-        import std.random;
+class RndTargetUnit : AutoTargetUnit
+{
+    this( UnitState initial, UnitParams prms, MapAccess map, vec3[3] pp )
+    in { assert( map !is null ); } body
+    { super( initial, prms, map, pp ); }
+
+protected:
+
+    override void choiseTarget()
+    {
         auto u( float dst ) @property { return uniform(-dst,dst); }
         target = vec3( u(200), u(200), u(25) + 25 );
+    }
+}
+
+class FindTargetUnit : AutoTargetUnit
+{
+    this( UnitState initial, UnitParams prms, MapAccess map, vec3[3] pp )
+    in { assert( map !is null ); } body
+    { super( initial, prms, map, pp ); }
+
+protected:
+
+    float step = 5.0f;
+
+    override void choiseTarget()
+    {
+        auto offset = vec2(step) * 10;
+
+        float angle = uniform(0,PI_2);
+
+        auto pts = 
+        [
+            findTargetAround( vec3( ph.pos.xy + rotate( offset * vec2( 1, 0), angle ), 0 ) ),
+            findTargetAround( vec3( ph.pos.xy + rotate( offset * vec2(-1, 0), angle ), 0 ) ),
+            findTargetAround( vec3( ph.pos.xy + rotate( offset * vec2( 0, 1), angle ), 0 ) ),
+            findTargetAround( vec3( ph.pos.xy + rotate( offset * vec2( 0,-1), angle ), 0 ) ),
+        ];
+
+        typeof(pts[0]) choisen;
+        foreach( p; pts ) if( choisen.weight < p.weight ) choisen = p;
+
+        target = choisen.center;
+    }
+
+    struct Unknown
+    {
+        float weight = 0;
+        vec3 center;
+    }
+
+    vec2 rotate( vec2 v, float a )
+    {
+        return vec2( v.x * cos(a) + v.y * sin(a),
+                    -v.x * sin(a) + v.y * cos(a) );
+    }
+
+    auto findTargetAround( vec3 p )
+    {
+        auto mr = map.getRegion( fRegion3( p - vec3(step,step,0), vec3(step,step,25) * 2 ) );
+
+        Unknown ret;
+
+        foreach( i, me; mr.img.mapAs!MapElement )
+        {
+            if( me.meas == 0 )
+            {
+                ret.weight++;
+                ret.center += mr.toWorld(i);
+            }
+        }
+
+        ret.center /= ret.weight;
+        return ret;
+    }
+}
+
+class SerialTargetUnit : AutoTargetUnit
+{
+protected:
+    static size_t stu_count;
+    size_t id;
+    size_t sector_number;
+    size_t target_number;
+
+    immutable static 
+    {
+        vec3 offset = vec3(-200,-200,0);
+
+        vec3 cell0 = vec3(100,100,50);
+        CoordType[3] res0 = [ 4, 4, 1 ];
+
+        vec3 cell = vec3(10);
+        CoordType[3] res = [ 10, 10, 5 ];
+        
+        size_t mcnt0 = res0[0] * res0[1] * res0[2];
+        size_t mcnt = res[0] * res[1] * res[2];
+    }
+
+public:
+
+    this( UnitState initial, UnitParams prms, MapAccess map, vec3[3] pp )
+    in { assert( map !is null ); } body
+    {
+        super( initial, prms, map, pp );
+        id = stu_count++;
+        sector_number = id % ( res0[0] * res0[1] * res0[2] );
+        target_number = id;
+    }
+
+protected:
+
+    override void choiseTarget()
+    {
+        target_number += stu_count;
+
+        target = offset + vec3( getCoord( res0, sector_number ) ) * cell0 +
+                ( vec3( getCoord( res, target_number % mcnt ) ) + vec3(0.5) ) * cell;
     }
 }

@@ -123,8 +123,14 @@ protected:
         return buf;
     }
 
+    //Unit newUnit( UnitState i, UnitParams p, MapAccess m, vec3[3] pid )
+    //{ return newEMM!RndTargetUnit( i, p, m, pid ); }
+
+    //Unit newUnit( UnitState i, UnitParams p, MapAccess m, vec3[3] pid )
+    //{ return newEMM!FindTargetUnit( i, p, m, pid ); }
+
     Unit newUnit( UnitState i, UnitParams p, MapAccess m, vec3[3] pid )
-    { return newEMM!AutoRndTargetUnit( i, p, m, pid ); }
+    { return newEMM!SerialTargetUnit( i, p, m, pid ); }
 
     vec3 rndPos( float dst )
     {

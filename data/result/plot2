@@ -1,4 +1,4 @@
-#use gnuplot -e "fn1='exp1'; fn2='exp2'" plot
+#use gnuplot -e "fn1='exp1'; fn2='exp2'" plot2
 
 set terminal pngcairo dashed size 1600,1200
 set style data lines
