@@ -1,0 +1,68 @@
+%@def.tex
+\documentclass[landscape]{slides}
+\usepackage[warn]{mathtext}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english, russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath, amsfonts, amssymb}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{wrapfig}
+\geometry{top=2cm}
+\geometry{left=3cm}
+\geometry{right=2cm}
+\geometry{bottom=2cm}
+\usepackage{color}
+\usepackage{multirow}
+\usepackage{lscape}
+\usepackage{wrapfig}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usetikzlibrary{arrows}
+\usetikzlibrary{calc}
+
+\renewcommand{\vec}{\overline}
+\renewcommand{\phi}{\varphi}
+
+\graphicspath{{pics/}}
+
+\makeatletter
+\newcommand{\nextverbatimspread}[1]{%
+    \def\verbatim@font{%
+        \linespread{#1}\normalfont\ttfamily% Updated definition
+            \gdef\verbatim@font{\normalfont\ttfamily}}% Revert to old definition
+}
+\makeatother
+
+\newenvironment{mintemize}{%
+    \vspace{-1.5em}
+    \begin{itemize}
+        \setlength\itemsep{-0.2em}
+}
+{
+    \end{itemize}
+    \vspace{-1em}
+}
+
+\newenvironment{cslide}{%
+    \begin{slide}
+    \begin{center}
+}
+{
+    \end{center}
+    \end{slide}
+}
+
+\makeatletter
+\def\sltop{\let\@topfil\relax}
+\makeatother
+
+\newenvironment{tslide}[1]{%
+    \begin{slide}
+    \sltop
+    {\large\textbf{#1}}
+}
+{ \end{slide} }
