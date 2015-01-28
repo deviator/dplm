@@ -1,0 +1,37 @@
+#use gnuplot -e "n='name';t1='t1';f1='exp1' ... t9='t9';f9='exp9'" plot9
+
+load 'commonplot'
+
+set linestyle 1  lt 3  lw 3    lc rgb "#FF4400"
+set linestyle 2  lt 2  lw 2    lc rgb "#FF0000"
+set linestyle 3  lt 1  lw 2.5  lc rgb "#FF0000"
+
+set linestyle 4  lt 3  lw 3    lc rgb "#0044FF"
+set linestyle 5  lt 2  lw 2    lc rgb "#0000FF"
+set linestyle 6  lt 1  lw 2.5  lc rgb "#0000FF"
+
+set linestyle 7  lt 3  lw 3    lc rgb "#228822"
+set linestyle 8  lt 2  lw 2    lc rgb "#00CC00"
+set linestyle 9  lt 1  lw 2.5  lc rgb "#00CC00"
+
+set output n.'_pknown.png'
+plot f1 using 'time':'pknown' title t1 ls 1,\
+     f2 using 'time':'pknown' title t2 ls 2,\
+     f3 using 'time':'pknown' title t3 ls 3,\
+     f4 using 'time':'pknown' title t4 ls 4,\
+     f5 using 'time':'pknown' title t5 ls 5,\
+     f6 using 'time':'pknown' title t6 ls 6,\
+     f7 using 'time':'pknown' title t7 ls 7,\
+     f8 using 'time':'pknown' title t8 ls 8,\
+     f9 using 'time':'pknown' title t9 ls 9
+
+set output n.'_ts.png'
+plot f1 using 'time':'ts' title t1 ls 1,\
+     f2 using 'time':'ts' title t2 ls 2,\
+     f3 using 'time':'ts' title t3 ls 3,\
+     f4 using 'time':'ts' title t4 ls 4,\
+     f5 using 'time':'ts' title t5 ls 5,\
+     f6 using 'time':'ts' title t6 ls 6,\
+     f7 using 'time':'ts' title t7 ls 7,\
+     f8 using 'time':'ts' title t8 ls 8,\
+     f9 using 'time':'ts' title t9 ls 9

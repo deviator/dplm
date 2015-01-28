@@ -214,7 +214,7 @@ protected:
     {
         getNear();
         calcWayPoint();
-        cam.target = vec3( (matrix.inv * vec4(way_point,1)).xyz );
+        calcCamTarget();
     }
 
     void getNear()
@@ -257,6 +257,12 @@ protected:
     void calcWayPoint()
     {
         way_point = trg_point;
+    }
+
+    void calcCamTarget()
+    {
+        //cam.target = vec3( (matrix.inv * vec4(way_point,1)).xyz );
+        cam.target = ph.pos + ph.vel;
     }
 
     vec3 nearCorrect()
@@ -438,15 +444,15 @@ public:
     {
         super( initial, prms, map, pp );
         id = stu_count++;
-        sector_number = id % ( res0[0] * res0[1] * res0[2] );
-        target_number = id;
+        sector_number = id % mcnt0
+        target_number = id / mcnt0;
     }
 
 protected:
 
     override void choiseTarget()
     {
-        target_number += stu_count;
+        target_number += stu_count / mcnt0;
 
         target = offset + vec3( getCoord( res0, sector_number ) ) * cell0 +
                 ( vec3( getCoord( res, target_number % mcnt ) ) + vec3(0.5) ) * cell;

@@ -1,17 +1,15 @@
-#use gnuplot -e "n='name';f1='exp1';f2='exp2';f3='exp3'" plot3
+#use gnuplot -e "n='name';t1='t1';t2='t2';t3='t3';f1='exp1';f2='exp2';f3='exp3'" plot3
 
-set terminal pngcairo dashed size 1600,1200
-set style data lines
-set grid
+load 'commonplot'
 
 set output n.'_pknown.png'
-plot f1 using 'time':'pknown' lw 2 lt 1 lc rgb "red",\
-     f2 using 'time':'pknown' lw 2 lt 1 lc rgb "blue",\
-     f3 using 'time':'pknown' lw 2 lt 1 lc rgb "magenta"
+plot f1 using 'time':'pknown' title t1 lt 1 lw 2 lc rgb "#FF0000",\
+     f2 using 'time':'pknown' title t2 lt 1 lw 2 lc rgb "#0000FF",\
+     f3 using 'time':'pknown' title t3 lt 1 lw 2 lc rgb "#00CC00"
 
 set output n.'_ts.png'
-plot f1 using 'time':'ts' lw 2 lt 1 lc rgb "red",\
-     f2 using 'time':'ts' lw 2 lt 1 lc rgb "blue",\
-     f3 using 'time':'ts' lw 2 lt 1 lc rgb "magenta"
+plot f1 using 'time':'ts' title t1 lw 2 lt 1 lc rgb "#FF0000",\
+     f2 using 'time':'ts' title t2 lw 2 lt 1 lc rgb "#0000FF",\
+     f3 using 'time':'ts' title t3 lw 2 lt 1 lc rgb "#00CC00"
 
 

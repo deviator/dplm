@@ -194,13 +194,13 @@ alias mat4 = Matrix!(4,4,float);
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.7\linewidth]{draw_uml.eps}
-    \caption{Блок схема модуля draw}
+    \caption{Блок-схема модуля draw}
 \end{figure}
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=\linewidth]{draw_object_uml.eps}
-    \caption{Блок схема модуля draw.object}
+    \caption{Блок-схема модуля draw.object}
 \end{figure}
 
 \newpage
@@ -251,7 +251,7 @@ alias mat4 = Matrix!(4,4,float);
 \begin{figure}[h!]
     \centering
     \includegraphics[width=\linewidth]{gl_uml.eps}
-    \caption{Блок схема обёртки OpenGL}
+    \caption{Блок-схема обёртки OpenGL}
 \end{figure}
 
 Каждый из этих классов является наследником от \verb|DesObject|
@@ -269,12 +269,12 @@ alias mat4 = Matrix!(4,4,float);
 Для совместного использования буферов \verb|OpenGL| и \verb|OpenCL|
 была написана обёртка для \verb|OpenCL|.
 
-Её блок схема:
+Её блок-схема:
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.5\linewidth]{cl_min_uml.eps}
-    \caption{Блок схема обёртки OpenCL}
+    \caption{Блок-схема обёртки OpenCL}
 \end{figure}
 
 Модуль \verb|des.cl|. Интероперабельность \verb|des.cl.gl|.
@@ -307,6 +307,7 @@ alias mat4 = Matrix!(4,4,float);
     \centering
     \includegraphics[width=\linewidth]{model_uml.eps}
     \caption{Диаграмма классов модуля sim.model}
+    \label{fig:model_uml}
 \end{figure}
 
 \clearpage
@@ -402,6 +403,8 @@ alias mat4 = Matrix!(4,4,float);
 точкой (\verb|way_point|). Управляющее действие PID складывается с
 коректирующим по ближайшим опастным точкам (об этом алгоритме рассказанно ниже).
 Ограничение суммарной силы проиходит с помощью функции \verb|limitedForce|.
+\phantomsection
+\label{ref:unit_model_limited_force}
 
 Примерный код функции \verb|limitedForce( vec3 ff )|:
 

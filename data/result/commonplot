@@ -1,0 +1,4 @@
+set terminal pngcairo font 'Times,30' dashed dashlength 2.0 size 1600,1200
+set style data lines
+set grid
+set key left

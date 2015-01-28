@@ -1,21 +1,66 @@
 #!/bin/bash
 
-gnuplot -e "fname='exp_16_find_4_rnd'" plot
-gnuplot -e "fname='exp_16_rnd_auto'" plot
-gnuplot -e "fname='exp_16_serial'" plot
+#gnuplot -e "fname='exp_16_find_4_rnd'" plot
+#gnuplot -e "fname='exp_16_rnd_auto'" plot
+#gnuplot -e "fname='exp_16_serial'" plot
+#
+#gnuplot -e "fname='exp_33_find_4_rnd'" plot
+#gnuplot -e "fname='exp_33_rnd_auto'" plot
+#gnuplot -e "fname='exp_33_serial'" plot
+#
+#gnuplot -e "fname='exp_50_find_4_rnd'" plot
+#gnuplot -e "fname='exp_50_rnd_auto'" plot
+#gnuplot -e "fname='exp_50_serial'" plot
 
-gnuplot -e "fname='exp_33_find_4_rnd'" plot
-gnuplot -e "fname='exp_33_rnd_auto'" plot
-gnuplot -e "fname='exp_33_serial'" plot
+gnuplot -e "n='all_find_4';\
+    t1='16';t2='33';t3='50';\
+    f1='exp_16_find_4_rnd';\
+    f2='exp_33_find_4_rnd';\
+    f3='exp_50_find_4_rnd'" plot3
+gnuplot -e "n='all_rnd_auto';\
+    t1='16';t2='33';t3='50';\
+    f1='exp_16_rnd_auto';\
+    f2='exp_33_rnd_auto';\
+    f3='exp_50_rnd_auto'" plot3 
+gnuplot -e "n='all_serial';\
+    t1='16';t2='33';t3='50';\
+    f1='exp_16_serial';\
+    f2='exp_33_serial';\
+    f3='exp_50_serial'" plot3
 
-gnuplot -e "fname='exp_50_find_4_rnd'" plot
-gnuplot -e "fname='exp_50_rnd_auto'" plot
-gnuplot -e "fname='exp_50_serial'" plot
+gnuplot -e "n='all_16';\
+    t1='find';t2='rnd';t3='serial';
+    f1='exp_16_find_4_rnd';\
+    f2='exp_16_rnd_auto';\
+    f3='exp_16_serial'" plot3
+gnuplot -e "n='all_33';\
+    t1='find';t2='rnd';t3='serial';
+    f1='exp_33_find_4_rnd';\
+    f2='exp_33_rnd_auto';\
+    f3='exp_33_serial'" plot3
+gnuplot -e "n='all_50';\
+    t1='find';t2='rnd';t3='serial';
+    f1='exp_50_find_4_rnd';\
+    f2='exp_50_rnd_auto';\
+    f3='exp_50_serial'" plot3
 
-gnuplot -e "n='all_find_4';f1='exp_16_find_4_rnd';f2='exp_33_find_4_rnd';f3='exp_50_find_4_rnd'" plot3
-gnuplot -e "n='all_rnd_auto';f1='exp_16_rnd_auto';f2='exp_33_rnd_auto';f3='exp_50_rnd_auto'" plot3 
-gnuplot -e "n='all_serial';f1='exp_16_serial';f2='exp_33_serial';f3='exp_50_serial'" plot3
+gnuplot -e "n='all';\
+    t1='find_16';\
+    t2='find_33';\
+    t3='find_50';\
+    t4='rnd_16';\
+    t5='rnd_33';\
+    t6='rnd_50';\
+    t7='serial_16';\
+    t8='serial_33';\
+    t9='serial_50';\
+    f1='exp_16_find_4_rnd';\
+    f2='exp_33_find_4_rnd';\
+    f3='exp_50_find_4_rnd';\
+    f4='exp_16_rnd_auto';\
+    f5='exp_33_rnd_auto';\
+    f6='exp_50_rnd_auto';\
+    f7='exp_16_serial';\
+    f8='exp_33_serial';\
+    f9='exp_50_serial'" plot9
 
-gnuplot -e "n='all_16';f1='exp_16_find_4_rnd';f2='exp_16_rnd_auto';f3='exp_16_serial'" plot3
-gnuplot -e "n='all_33';f1='exp_33_find_4_rnd';f2='exp_33_rnd_auto';f3='exp_33_serial'" plot3
-gnuplot -e "n='all_50';f1='exp_50_find_4_rnd';f2='exp_50_rnd_auto';f3='exp_50_serial'" plot3

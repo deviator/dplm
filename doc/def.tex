@@ -27,14 +27,17 @@
 \geometry{right=2cm}
 \geometry{bottom=2cm}
 
-\usetikzlibrary{arrows}
 \usetikzlibrary{calc}
-\usetikzlibrary{positioning}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{fit,positioning}
 
 \renewcommand{\vec}{\overline}
 \renewcommand{\phi}{\varphi}
 \newcommand{\textspaceend}[1]{\uline{\hspace{0.3cm}#1\hspace{0.3cm}}}
 \newcommand{\textspace}[1]{\uline{\hspace{0.3cm}#1\hspace*{\fill}}}
+
+\newcommand{\nnref}[1]{\textbf{\ref{#1} \nameref{#1}}}
+
 \def\lb{\linebreak}
 %\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 \newcolumntype{L}[1]{>{\raggedright\let\tlb\\\arraybackslash\hspace{0pt}}m{#1}}
@@ -77,4 +80,3 @@
 % ссылки на новой странице с 1
 \usepackage{perpage}
 \MakePerPage{footnote}
-
