@@ -399,20 +399,18 @@ $$\vec P = \frac{( X_U, Y_U, Z_U )^T}{ W_U } $$
                 text centered, rounded corners]
     \tikzstyle{endnode} = [circle,minimum size=.5cm,fill=white,draw=black]
     \tikzstyle{statnode} = [diamond,aspect=3,draw,text badly centered,inner sep=0pt]
-    \tikzstyle{every picture} = [->,=>latex,shorten >=0pt,auto,node distance=1.5cm,thick]
 
-    \centering
-
-    \begin{tikzpicture}
+    \begin{wrapfigure}{r}{0.3\linewidth}
+    \begin{tikzpicture}[->,=>latex,shorten >= 0pt,auto,node distance=2cm]
 
         \node[startnode] (0) {};
-        \node[stepnode] (1) [below of=0] {$n++$};
-        \node[statnode] (2) [below of=1] {$n<K$};
+        \node[stepnode] (1) [below of=0] {\verb|n++|};
+        \node[statnode] (2) [below of=1] {\verb|n >= K|};
         \node[endnode] (r1) [right=2cm of 2] {};
-        \node[statnode] (3) [below of=2] {$!needNewTarget()$};
+        \node[statnode] (3) [below of=2] {\verb|D < limit|};
         \node[endnode] (r2) [below of=r1] {};
-        \node[stepnode] (4) [below of=3] {$n=0$};
-        \node[stepnode] (5) [below of=4] {$choiseTarget()$};
+        \node[stepnode] (4) [below of=3] {\verb|n=0|};
+        \node[stepnode] (5) [below of=4] {\verb|choiseTarget()|};
         \node[endnode] (6) [below of=5] {};
 
         \path
@@ -420,12 +418,24 @@ $$\vec P = \frac{( X_U, Y_U, Z_U )^T}{ W_U } $$
         (1) edge (2) 
         (2) edge (3)
         (3) edge (4)
-        (2) edge node[above] {$\text{да}$} (r1)
-        (3) edge node[above] {$\text{да}$} (r2)
+        (2) edge node[above] {$\text{нет}$} (r1)
+        (3) edge node[above] {$\text{нет}$} (r2)
         (4) edge (5)
         (5) edge (6);
 
     \end{tikzpicture}
+
+    \end{wrapfigure}
+
+    \verb|n| -- счётчик
+
+    \verb|K| -- минимальное количество шагов, необходимое для смены целевой
+                точки
+
+    \verb|D| -- дисперсия длин вектор последних координат
+
+    \verb|limit| -- порог для значения дисперсии
+
 \end{tslide}
 
 \begin{tslide}{Программно-математическое обеспечение}
