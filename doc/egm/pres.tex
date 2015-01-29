@@ -401,7 +401,7 @@ $$\vec P = \frac{( X_U, Y_U, Z_U )^T}{ W_U } $$
     \tikzstyle{statnode} = [diamond,aspect=3,draw,text badly centered,inner sep=0pt]
 
     \begin{wrapfigure}{r}{0.3\linewidth}
-    \begin{tikzpicture}[->,=>latex,shorten >= 0pt,auto,node distance=2cm]
+    \begin{tikzpicture}[>=triangle 45,shorten >= 0pt,auto,node distance=2cm]
 
         \node[startnode] (0) {};
         \node[stepnode] (1) [below of=0] {\verb|n++|};
@@ -413,7 +413,7 @@ $$\vec P = \frac{( X_U, Y_U, Z_U )^T}{ W_U } $$
         \node[stepnode] (5) [below of=4] {\verb|choiseTarget()|};
         \node[endnode] (6) [below of=5] {};
 
-        \path
+        \path[->]
         (0) edge (1) 
         (1) edge (2) 
         (2) edge (3)
@@ -427,7 +427,7 @@ $$\vec P = \frac{( X_U, Y_U, Z_U )^T}{ W_U } $$
 
     \end{wrapfigure}
 
-    \verb|n| -- счётчик
+    \verb|n| -- счётчик шагов
 
     \verb|K| -- минимальное количество шагов, необходимое для смены целевой
                 точки
