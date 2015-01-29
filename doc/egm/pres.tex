@@ -34,57 +34,35 @@
 \end{tslide}
 
 \begin{tslide}{Для чего нужен МБПЛА}
-\begin{itemize}
-    \item построение трёхмерной динамической \newline
+
+    Построение трёхмерной динамической \newline
         карты неизвестной местности
-    \item исследование и построение карты помещений
-    \item непрерывный трекинг подвижных объектов
-    \item патруль территории
-    \item построение дополненной реальности \newline ("взор сквозь стены")
-\end{itemize}
+
+    \begin{center}
+    \includegraphics[width=.9\linewidth]{s50s_map2.png}
+    \end{center}
 \end{tslide}
 
 \begin{tslide}{Для чего нужен МБПЛА}
 
-    \includegraphics[width=\linewidth]{s50s_map2.png}
+    Исследование и построение карты помещений
 
-\end{tslide}
+    \begin{center}
+    \includegraphics[width=.9\linewidth]{mapInside.jpg}
+    \end{center}
 
-\begin{tslide}{Реализация МБПЛА}
-\begin{itemize}
-\item Построение информационного поля участка местности
-\item Поддержка актуальности, полноты и достоверности информационного поля
-\item Обеспечение высокоскоростного канала радиосвязи
-\end{itemize}
-\end{tslide}
-
-\begin{tslide}{Аспекты реализации}
-\begin{itemize}
-\item Разделение данных
-\item Разделение вычислений
-\item Локальная система позиционирования
-\item Построение маршрута обхода местности
-\item Задача позиционирования в пределах видимости
-\item Взаимосвязь и иерархия элементов МБПЛА
-\end{itemize}
 \end{tslide}
 
 \begin{tslide}{В работе рассматривается}
 
 \begin{itemize}
 \item Формализация карты местности
-\item Модель юнита, его оснащение и принцип перемещения
+\item Модель юнита, его оснащение и принцип работы
+\item Алгоритм заполнения карты
 \item Алгоритм обхода выпуклых препядствий
-\item Алгоритм построения карты местности
-    с вариациями
+\item Алгоритм обхода местности с вариациями
 \item Реализация ПМО и проведение экспериментов
 \end{itemize}
-
-\end{tslide}
-
-\begin{tslide}{Модель карты местности}
-
-    \includegraphics[width=\linewidth]{map.png}
 
 \end{tslide}
 
@@ -93,29 +71,57 @@
     Предполагается что участок местности ограничен по ширине,
     глубине и высоте.
     Он разбивается на прямоугольные сектора, каждый из которых хранит
-    информацию об единице объёма:
+    информацию об единице объёма
 
-    \begin{mintemize}
-    \item сколько раз был исследован сектор
-    \item когда было произведенно последнее исследование
-    \item результат исследования (занят ли сектор)
-    \end{mintemize}
+    \begin{center}
+    \includegraphics[width=.8\linewidth]{map.png}
+    \end{center}
+
+\end{tslide}
+
+\begin{tslide}{Реализация карты местности}
 
     Реализация карты представляет собой 1-мерный массив,
     к которому можно обратиться с помощью трёх индексов-координат.
     Так же для карты имеется матрица трансформации координат
     из локальных (индексов) в глобальные (метры).
 
+    \begin{center}
+    \includegraphics[width=.6\linewidth]{mapRealisation.png}
+    \end{center}
+
+\end{tslide}
+
+\begin{tslide}{Реализация карты местности}
+
+    Каждый сектор хранит:
+
+    \begin{mintemize}
+    \item {\Large\verb|N|} -- сколько раз был исследован сектор
+    \item {\Large\verb|T|} -- когда было произведенно последнее исследование
+    \item {\Large\verb|val|} -- результат исследования (занят ли сектор)
+    \item {\Large\verb|align|} -- поле для выравнивания до 16 байт
+    \end{mintemize}
+
+    \vfill
+
+    \begin{center}
+    \includegraphics[width=\linewidth]{mapData.png}
+    \end{center}
+
+    \vfill
+
 \end{tslide}
 
 \begin{tslide}{Модель единицы массива}
     
-    \begin{itemize}
-    \item За основу была взята концепция БПЛА с вертикальным взлётом
-    \item У каждого юнита на борту имеется датчик измеряющий "карту глубин"
-        с определённой разрешающей способностью
-    \item Каждый юнит знает о положении остальных юнитов системы
-    \end{itemize}
+    \begin{wrapfigure}{r}{0.3\textwidth}
+        \vspace{-1cm}
+        \includegraphics[width=\linewidth]{X650.jpg}
+        \vspace{-2.8cm}
+    \end{wrapfigure}
+
+    За основу была взята концепция БПЛА с вертикальным взлётом
 
     Дифференциальное уравнение движения:
     $$
@@ -127,46 +133,120 @@
     \right.
     $$
 
+    где: 
+
+    $\vec p, \vec V$ -- координаты и скорость юнита
+    
+    $\vec g$ -- ускорение свободного падения
+
+    $\vec a = \frac{1}{m} \sum_{i=1}^N F_i$ -- ускорение от действующих на юнит сил
+
 \end{tslide}
+
 \begin{tslide}{Модель единицы массива}
     
-    В список действующих на юнит сил входят:
+    Действующих на юнит силы
+
+    \tikzstyle{every picture}+=[
+        axis/.style={black},
+        vector/.style={->,line width=1mm,black},
+        help/.style={gray,thin,dashed},
+        rot/.style={tdplot_rotated_coords}
+    ]
+
+    \def\dot{circle[radius=1mm]}
+    \def\P{1.9}
+    \def\Pm{1.6}
+    \def\Pmm{0.5}
+    \def\Vrot{10}
+    \def\fnlen{4}
+    \def\ftlen{3}
+    \def\dst{8}
+
+    \begin{center}
+    \tdplotsetmaincoords{0}{0}
+    \begin{tikzpicture}[scale=1.6,tdplot_main_coords]
+        \tdplotsetrotatedcoords{85}{60}{-50}
+
+        \draw[rot,vector,blue] (0,0) -- (\dst,0);
+        \node[rot,below right] at (6,0) {$\vec F_\text{упр}$};
+
+        \draw[rot,vector] (0,0) -- (\Vrot:5) node[above] {$\vec V$};
+        \draw[rot,vector,red] (0,0) -- (180+\Vrot:3);
+        \node[rot,below] at (180+\Vrot:3) {$\vec X_0$};
+        \draw[rot,vector,green] (0,0) -- (-\fnlen,\ftlen,0);
+        \node[rot,above left] at (-\fnlen,\ftlen) {$\vec F_{\text{кор}}$};
+
+        \draw[rot,help] (-\fnlen,\ftlen) -- (\dst-\fnlen,\ftlen);
+        \draw[rot,help] (\dst,0) -- (\dst-\fnlen,\ftlen);
+        \draw[rot,help] (0,0) -- (\dst-\fnlen,\ftlen);
+        \draw[rot,vector] (0,0) -- ($(\dst-\fnlen,\ftlen)+(180+\Vrot:3)$) node (S) {};
+        \draw[rot,help] (180+\Vrot:3) -- (S);
+        \draw[rot,help] (\dst-\fnlen,\ftlen) -- (S);
+
+        \node[rot,left] at (S) {$\vec F$};
+        \fill[rot,black] (0,0) \dot node[below] {$O$};
+
+    \end{tikzpicture}
+    \end{center}
     \begin{itemize}
-    \item Сила сопротивления воздуха
-        $$\vec X_0 = C_{x0}\frac{-\vec V \rho |V|}{2} S$$
-    \item Коррекция по ближайшим опасным точкам
-    \item Управляющее воздействие
+
+    \item $\vec X_0 = C_{x0}\frac{-\vec V \rho |V|}{2} S$ -- сила сопротивления воздуха
+    \item $\vec F_\text{упр}$ -- управляющее воздействие
+    \item $\vec F_\text{кор}$ -- коррекция по ближайшим опасным точкам
     \end{itemize}
 
-    Если сумма сил превышает порог в горизонтальной проекции
-    нормируются компоненты $x$ и $y$ совместно, отдельно проверяется
-    значение по компоненте $z$.
+\end{tslide}
+
+\begin{tslide}{Модель единицы массива}
+
+    У каждого юнита на борту имеется сенсор измеряющий \newline
+    <<карту глубин>> с определённым разрешением и дальностью
+    
+    \includegraphics[width=\linewidth]{simDepthMap2.png}
 
 \end{tslide}
 
 \begin{tslide}{Заполнение карты}
 
-    \begin{itemize}
-        \item 1. получаем карту глубин
-        \item 2. с помощью обратной матрицы перспективной трансформации
-            переводим каждую точку на карте глубин в точку в пространстве
-        \item 3. для каждой точки строим отрезок из камеры в эту точку
-    \end{itemize}
+    Получаем карту глубин
+
+    \begin{center}
+    \includegraphics[width=.7\linewidth]{depthView.png}
+    \end{center}
+
 \end{tslide}
+
 \begin{tslide}{Заполнение карты}
-    \begin{itemize}
-        \item 4. проходим по отрезку с небольшим шагом
-            \begin{itemize}
-            \item на каждом шаге приводим точку к системе координат карты
-            \item если сектор не исследован помечаем сектор карты как пустой
-            \end{itemize}
-        \item 5. проверям длину отрезка
-            \begin{itemize}
-            \item если близко к предельному для сенсора значению по дальности
-                то помечаем сектор на конце отрезка как пустой
-            \item иначе помечаем сектор как заполненный
-            \end{itemize}
-    \end{itemize}
+
+    С помощью обратной матрицы перспективной трансформации
+    переводим каждую точку на карте глубин в точку в пространстве
+
+$$
+\vec U = \left( \begin{array}{c c c c}
+        \frac{1}{ R \cdot \tan( \frac{1}{2} A ) } & 0 & 0 & 0 \\
+        0 & \frac{1}{ \tan( \frac{1}{2} A ) } & 0 & 0 \\
+        0 & 0 & \frac{ z_{n} + z_{f} }{ z_{n}-z_{f} } & \frac{ 2 \cdot z_{n} \cdot z_{f} }{ z_{n} - z_{f} } \\
+        0 & 0 & -1 & 0 \end{array} \right)^{-1}
+    \left( \begin{array}{c} x \\ y \\ depth \\ 1 \end{array} \right)
+$$
+
+$$\vec P = \frac{( X_U, Y_U, Z_U )^T}{ W_U } $$
+
+\end{tslide}
+
+\begin{tslide}{Заполнение карты}
+
+    Кадждую полученную точку и координаты камеры юнита
+    приводим к системе координат карты и строим отрезок
+
+    \vfill
+
+    \begin{center}
+    \includegraphics[width=\linewidth]{mapRaster.png}
+    \end{center}
+
+    \vfill
 
 \end{tslide}
 
@@ -215,14 +295,14 @@
         \node[rot,left] at (0,0,3) {$\vec U$};
         \draw[rot,vector,red] (0,0,0) -- (-\fnlen,0,0);
         \draw[rot,vector,red] (0,0,0) -- (-1,0,0);
-        \node[rot,below left] at (-\fnlen,0,0) {$\vec f_N$};
+        \node[rot,below left] at (-\fnlen,0,0) {$\vec F_N$};
         \node[rot,below] at (-1,0,0) {$\vec N$};
         \draw[rot,vector,green] (0,0,0) -- (0,\ftlen,0);
         \draw[rot,vector,green] (0,0,0) -- (0,1,0);
-        \node[rot,above left] at (0,\ftlen,0) {$\vec f_T$};
+        \node[rot,above left] at (0,\ftlen,0) {$\vec F_T$};
         \node[rot,above] at (0,1,0) {$\vec T$};
         \draw[rot,vector,blue] (0,0,0) -- (-\fnlen,\ftlen,0);
-        \node[rot,above left] at (-\fnlen,\ftlen,0) {$\vec f_{\text{к}}$};
+        \node[rot,above left] at (-\fnlen,\ftlen,0) {$\vec F_\text{кор}$};
 
         \draw[rot,help] (0,\ftlen,0) -- ++(-\fnlen,0,0) -- ++(0,-\ftlen,0);
 
@@ -236,7 +316,8 @@
     К ближайшим опасным точкам относятся заполненные сектора карты и
     юниты системы.
 
-    Направление тангенсальной компоненты определяется по текущей скорости.
+    Направление тангенсальной компоненты определяется по направлению 
+    текущей скорости.
 
 \end{tslide}
 
@@ -245,13 +326,106 @@
     Управляющее воздействие определяется положением целевой
     точки
 
+    \def\sum{ circle[radius=2mm] }
+
+    \tikzset{%
+    block/.style    = {draw, thick, rectangle,
+                        minimum height = 2em,
+                        minimum width = 2em},
+    input/.style    = {coordinate,circle,draw,scale=0.3,node distance=6cm}, % Input
+    output/.style   = {coordinate}, % Output
+    cross/.style={path picture={
+                    \draw[black]
+                (path picture bounding box.south east) -- (path picture bounding box.north west) (path picture bounding box.south west) -- (path picture bounding box.north east);
+                }},
+    sum/.style      = {draw,circle,cross} % Adder
+    }
+
+    \begin{center}
+    \begin{tikzpicture}[auto, thick, node distance=3cm, >=triangle 45,scale=1]
+        \draw
+        node[input] (input1) {} 
+        node[sum, right of=input1] (suma1) {}
+        node[input, below of=suma1] (input2) {} 
+        node[block, right of=suma1] (PID) {$PID$};
+
+        \draw[->] (input1) -- node[above left] {$\vec X_\text{т}$} (suma1);
+        \draw[->] (input2) -- node[below left] {$\vec X_\text{ц}$} (suma1);
+        \draw[->] (input2) -- node[above right] {$-$} (suma1);
+        \draw[->] (suma1) -- node {} (PID);
+        \draw[->] (PID) -- node[above right] {$\vec F_\text{упр}$} +(3cm,0);
+
+    \end{tikzpicture}
+    \end{center}
+
     Было выбрано 3 вариации выбора целевых точек:
     \begin{itemize}
-        \item Распределение по секторам карты подгрупп юнитов
+        \item Распределение по регионам карты подгрупп юнитов
         \item Поиск ближайших неизведанных регионов
-        \item Случайный выбор точки в пределах карты
+        \item Выбор случайной точки в пределах карты
     \end{itemize}
 
+\end{tslide}
+
+\begin{tslide}{Распределение по регионам карты подгрупп юнитов}
+
+
+    \vfill
+
+    \begin{center}
+    \includegraphics[width=.6\linewidth]{unitSerialMove.png}
+    \end{center}
+
+    \vfill
+
+\end{tslide}
+
+\begin{tslide}{Поиск ближайших неизведанных регионов}
+
+    \vfill
+
+    \begin{center}
+    \includegraphics[width=.6\linewidth]{unitFineMove.png}
+    \end{center}
+
+    \vfill
+
+\end{tslide}
+
+\begin{tslide}{Момент смены целевой точки}
+
+    \tikzstyle{startnode} = [circle,minimum size=.5cm,fill=black]
+    \tikzstyle{stepnode} = [draw,rectangle, minimum height=0.7cm,
+                text centered, rounded corners]
+    \tikzstyle{endnode} = [circle,minimum size=.5cm,fill=white,draw=black]
+    \tikzstyle{statnode} = [diamond,aspect=3,draw,text badly centered,inner sep=0pt]
+    \tikzstyle{every picture} = [->,=>latex,shorten >=0pt,auto,node distance=1.5cm,thick]
+
+    \centering
+
+    \begin{tikzpicture}
+
+        \node[startnode] (0) {};
+        \node[stepnode] (1) [below of=0] {$n++$};
+        \node[statnode] (2) [below of=1] {$n<K$};
+        \node[endnode] (r1) [right=2cm of 2] {};
+        \node[statnode] (3) [below of=2] {$!needNewTarget()$};
+        \node[endnode] (r2) [below of=r1] {};
+        \node[stepnode] (4) [below of=3] {$n=0$};
+        \node[stepnode] (5) [below of=4] {$choiseTarget()$};
+        \node[endnode] (6) [below of=5] {};
+
+        \path
+        (0) edge (1) 
+        (1) edge (2) 
+        (2) edge (3)
+        (3) edge (4)
+        (2) edge node[above] {$\text{да}$} (r1)
+        (3) edge node[above] {$\text{да}$} (r2)
+        (4) edge (5)
+        (5) edge (6);
+
+    \end{tikzpicture}
 \end{tslide}
 
 \begin{tslide}{Программно-математическое обеспечение}
@@ -277,6 +451,24 @@
 
     \centering
     \includegraphics[width=.6\linewidth]{model_uml.eps}
+
+\end{tslide}
+
+\begin{tslide}{Результаты экспериментов}
+
+    \vfill
+
+    \begin{center}
+    \includegraphics[width=.3\linewidth]{s50rm_map.png}
+    \includegraphics[width=.3\linewidth]{s50f4r_map.png}
+    \includegraphics[width=.3\linewidth]{s50s_map1.png}
+    \end{center}
+    \vfill
+
+    Состояние карты на конечный момент моделирования, вид сверху
+    (слева направо: случайный выбор, поиск неизведанного сектора, 
+    распределение по сетке)
+    \vfill
 
 \end{tslide}
 

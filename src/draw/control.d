@@ -68,7 +68,7 @@ public:
         worldmap = newEMM!CLWorldMap( env, ivec3(200,200,50), vec3(1), ddot.cdata );
         worldmap.needDraw = false;
 
-        mdl = newEMM!Model( ModelConfig( 0.05f, 33 ), worldmap );
+        mdl = newEMM!Model( ModelConfig( 0.05f, 1 ), worldmap );
 
         worldmap.setUnitCount( mdl.units.length );
         worldmap.setUnitCamResolution( mdl.config.camres );
@@ -86,7 +86,7 @@ public:
 
         logger.trace( "create control complite" );
 
-        openOutput();
+        //openOutput();
     }
 
     void idle()
@@ -121,7 +121,7 @@ public:
 
     void quit()
     {
-        output.close();
+        if( output.isOpen ) output.close();
     }
 
     void keyReaction( in KeyboardEvent ev )

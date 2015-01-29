@@ -262,7 +262,7 @@ protected:
     void calcCamTarget()
     {
         //cam.target = vec3( (matrix.inv * vec4(way_point,1)).xyz );
-        cam.target = ph.pos + ph.vel;
+        cam.target = ph.vel;
     }
 
     vec3 nearCorrect()
@@ -444,7 +444,7 @@ public:
     {
         super( initial, prms, map, pp );
         id = stu_count++;
-        sector_number = id % mcnt0
+        sector_number = id % mcnt0;
         target_number = id / mcnt0;
     }
 
